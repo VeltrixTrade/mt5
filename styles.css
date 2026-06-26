@@ -1,0 +1,714 @@
+/* CSS Custom Variables for MT5 Styling */
+:root {
+    --mt5-blue: #0b5cd5;
+    --mt5-red: #e53935;
+    --mt5-border: #e5e5ea;
+    --mt5-grid: #f2f2f5;
+    --mt5-price-bg: #26a69a; /* Teal / Emerald green in MT5 */
+    --tv-green: #089981;    /* TradingView Candlestick Green */
+    --tv-red: #f23645;      /* TradingView Candlestick Red */
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+body {
+    background-color: #1c1c1e;
+    font-family: Arial, Helvetica, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    overflow: hidden;
+}
+
+/* Portrait locked mobile frame simulator */
+.iphone-frame {
+    position: relative;
+    width: 390px;
+    height: 844px;
+    background: #fff;
+    border: 8px solid #222;
+    border-radius: 40px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.iphone-screen {
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+.status-bar-spacer {
+    height: 47px;
+    width: 100%;
+    background: #ffffff;
+    flex-shrink: 0;
+}
+
+.iphone-home-indicator {
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 4px;
+    background: #000;
+    border-radius: 2px;
+    z-index: 999;
+    pointer-events: none;
+}
+
+/* On mobile viewports: occupy the full viewport */
+@media (max-width: 450px) {
+    body {
+        background-color: #fff;
+    }
+    .iphone-frame {
+        width: 100vw;
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+    }
+    .status-bar-spacer {
+        height: env(safe-area-inset-top, 47px);
+    }
+}
+
+/* Sliced MT5 Header Toolbar */
+.mt5-header-container {
+    position: relative;
+    width: 100%;
+    height: 44px;
+    background: #fff;
+    border-bottom: 1px solid var(--mt5-border);
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.mt5-header-img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.header-overlay-btn {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 10;
+    outline: none;
+}
+
+/* MT5 One-Click Trading Panel */
+.trading-panel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #ffffff;
+    border-bottom: 1.5px solid var(--mt5-border);
+    height: 42px;
+    padding: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    transition: all 0.25s cubic-bezier(0.1, 0.8, 0.2, 1);
+    overflow: hidden;
+}
+
+.trading-panel.hidden {
+    height: 0;
+    border-bottom-width: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.trade-btn {
+    position: relative;
+    flex: 1;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    cursor: pointer;
+    padding: 5px;
+    transition: background-color 0.1s ease-in-out;
+}
+
+.trade-btn.sell {
+    background-color: var(--mt5-red);
+}
+
+.trade-btn.buy {
+    background-color: var(--mt5-blue);
+}
+
+/* Tick Flashing States */
+.trade-btn.tick-down {
+    background-color: var(--mt5-red) !important;
+}
+
+.trade-btn.tick-up {
+    background-color: var(--mt5-blue) !important;
+}
+
+.btn-label {
+    position: absolute;
+    top: 3px;
+    left: 6px;
+    font-size: 8px;
+    font-weight: bold;
+    opacity: 0.85;
+    letter-spacing: 0.5px;
+}
+
+.price-val {
+    font-size: 11px;
+    font-weight: normal;
+    margin-top: 5px;
+}
+
+.large-price {
+    font-size: 17px;
+    font-weight: bold;
+}
+
+.super-price {
+    font-size: 10px;
+    vertical-align: super;
+    font-weight: bold;
+    margin-left: 1px;
+}
+
+.lot-selector {
+    display: flex;
+    align-items: center;
+    background: #fff;
+    height: 100%;
+    width: 95px;
+    border-left: 1px solid var(--mt5-border);
+    border-right: 1px solid var(--mt5-border);
+}
+
+.lot-adjust {
+    background: none;
+    border: none;
+    width: 24px;
+    height: 100%;
+    font-size: 9px;
+    color: #333;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#lot-input {
+    flex: 1;
+    width: 47px;
+    height: 100%;
+    border: none;
+    text-align: center;
+    font-size: 15px;
+    font-weight: bold;
+    color: #000;
+    outline: none;
+}
+
+/* App Body (Container for pages) */
+.app-body {
+    height: 670px;
+    position: relative;
+    overflow: hidden;
+    background: #fff;
+    flex-shrink: 0;
+}
+
+.page {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    z-index: 10;
+}
+
+.page.hidden {
+    display: none !important;
+}
+
+.page-header {
+    font-size: 16px;
+    font-weight: bold;
+    padding: 12px;
+    border-bottom: 1px solid var(--mt5-border);
+    background: #f8f8fa;
+    text-align: center;
+}
+
+/* Chart Container & Elements */
+.chart-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #fff;
+}
+
+#main-chart-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
+}
+
+.chart-info {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    pointer-events: auto;
+    cursor: pointer;
+    z-index: 20;
+    font-family: Arial, Helvetica, sans-serif;
+    text-align: left;
+    line-height: 1.15;
+}
+
+.symbol-timeframe {
+    margin-bottom: 2px;
+}
+
+.symbol-blue {
+    color: #2962ff; /* MT5 Bright Blue */
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.arrow-blue {
+    color: #2962ff;
+    font-size: 9px;
+    margin-left: 2px;
+    margin-right: 2px;
+    vertical-align: middle;
+}
+
+.tf-grey {
+    color: #4a4a4a;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.symbol-desc {
+    font-size: 9.5px;
+    color: #8e8e93;
+}
+
+/* Timeframe Dropdown selector menu */
+.timeframe-dropdown {
+    position: absolute;
+    top: 91px; /* status-bar-spacer (47px) + header (44px) */
+    left: 10px;
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid var(--mt5-border);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    width: 140px;
+    display: flex;
+    flex-direction: column;
+    padding: 6px 0;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: opacity 0.2s ease-in-out;
+}
+
+.tf-option {
+    padding: 10px 16px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #333;
+    text-align: right;
+    font-weight: 500;
+    font-family: Arial, sans-serif;
+    border-bottom: 1px solid rgba(0,0,0,0.03);
+}
+
+.tf-option:last-child {
+    border-bottom: none;
+}
+
+.tf-option:active, .tf-option.active {
+    background-color: #f2f2f7;
+    color: #2962ff;
+    font-weight: bold;
+}
+
+/* Crosshair labels */
+.crosshair-info {
+    position: absolute;
+    background: #555;
+    color: #fff;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: bold;
+    font-family: Arial, Helvetica, sans-serif;
+    border-radius: 3px;
+    pointer-events: none;
+    z-index: 30;
+}
+
+/* Replay Panel Overlay (placed transparently over the three dots) */
+.replay-toggle-btn {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 75px;
+    height: 25px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 45;
+}
+
+/* Replay Controls Panel (Glassmorphic, floated above bottom tab bar) */
+.replay-controls-panel {
+    position: absolute;
+    bottom: 95px;
+    left: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 50;
+    direction: ltr;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: all 0.3s cubic-bezier(0.1, 0.8, 0.2, 1);
+}
+
+.replay-controls-panel.hidden {
+    transform: translateY(120%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.replay-title {
+    font-size: 11px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.replay-row {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.replay-btn {
+    background: #fff;
+    border: 1px solid var(--mt5-border);
+    width: 44px;
+    height: 36px;
+    border-radius: 8px;
+    margin: 0 6px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.replay-btn:active {
+    background: #f0f0f0;
+}
+
+.replay-speed-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.speed-btn {
+    background: none;
+    border: 1px solid transparent;
+    padding: 2px 8px;
+    font-size: 11px;
+    border-radius: 4px;
+    margin: 0 2px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.speed-btn.active {
+    background: var(--mt5-blue);
+    color: #fff;
+    border-color: var(--mt5-blue);
+}
+
+.replay-progress {
+    font-size: 10px;
+    color: #8e8e93;
+}
+
+/* Sliced MT5 Bottom Navigation Bar */
+.bottom-nav-container {
+    position: relative;
+    width: 100%;
+    height: 83px;
+    background: #fff;
+    border-top: 1px solid var(--mt5-border);
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.bottom-nav-img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.nav-overlay-btn {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 20%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 10;
+    outline: none;
+}
+
+/* Quotes Page List Styles */
+.quotes-list {
+    padding: 10px;
+}
+
+.quote-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 10px;
+    border-bottom: 1px solid var(--mt5-border);
+}
+
+.quote-symbol {
+    font-weight: bold;
+    font-size: 16px;
+    color: #000;
+}
+
+.quote-prices {
+    display: flex;
+}
+
+.quote-price {
+    font-family: monospace;
+    font-size: 15px;
+    font-weight: bold;
+    width: 80px;
+    text-align: center;
+    padding: 4px;
+    border-radius: 4px;
+    margin-left: 5px;
+}
+
+.quote-price.sell {
+    color: var(--mt5-red);
+    background: rgba(229, 57, 117, 0.05);
+}
+
+.quote-price.buy {
+    color: var(--mt5-blue);
+    background: rgba(11, 92, 213, 0.05);
+}
+
+/* Trade positions tab */
+.balance-card {
+    background: #f8f8fa;
+    padding: 15px;
+    border-bottom: 1px solid var(--mt5-border);
+}
+
+.balance-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    padding: 4px 0;
+    color: #333;
+}
+
+.balance-row:first-child {
+    font-weight: bold;
+    font-size: 16px;
+    color: #000;
+}
+
+.positions-list, .history-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.no-positions, .no-history {
+    padding: 40px;
+    text-align: center;
+    color: #8e8e93;
+    font-size: 14px;
+}
+
+.position-item, .history-item {
+    border: 1px solid var(--mt5-border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.pos-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.pos-symbol {
+    font-weight: bold;
+    font-size: 15px;
+}
+
+.pos-type-lot {
+    font-size: 12px;
+    font-weight: bold;
+    margin-left: 8px;
+}
+
+.pos-type-lot.buy {
+    color: var(--mt5-blue);
+}
+
+.pos-type-lot.sell {
+    color: var(--mt5-red);
+}
+
+.pos-profit {
+    font-weight: 800;
+    font-size: 16px;
+}
+
+.pos-profit.profit {
+    color: #2e7d32;
+}
+
+.pos-profit.loss {
+    color: var(--mt5-red);
+}
+
+.pos-details {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #8e8e93;
+}
+
+.close-btn {
+    margin-top: 8px;
+    align-self: flex-end;
+    background: #ffebee;
+    color: #c62828;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* Settings tab */
+.settings-group {
+    margin: 15px;
+    border: 1px solid var(--mt5-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.settings-title {
+    background: #f8f8fa;
+    padding: 10px 15px;
+    font-weight: bold;
+    font-size: 13px;
+    color: #8e8e93;
+    border-bottom: 1px solid var(--mt5-border);
+}
+
+.settings-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: #fff;
+    border-bottom: 1px solid var(--mt5-border);
+    font-size: 14px;
+}
+
+.settings-item:last-child {
+    border-bottom: none;
+}
+
+.csv-upload-label {
+    background: var(--mt5-blue);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    display: inline-block;
+}
+
+.settings-btn {
+    display: block;
+    width: calc(100% - 30px);
+    margin: 15px;
+    background: var(--mt5-red);
+    color: #fff;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    text-align: center;
+}
+
+.hidden {
+    display: none !important;
+}

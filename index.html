@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MT5 Chart Simulator - XAUUSD M5</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="iphone-frame">
+        <div class="iphone-screen">
+            <!-- iOS Top Status Bar Spacer (47px height) -->
+            <div class="status-bar-spacer"></div>
+
+            <!-- Sliced MT5 Top Toolbar Image with Interactive Overlay Click Zones -->
+            <div class="mt5-header-container">
+                <img src="الشريط العلوي.JPG" class="mt5-header-img" alt="الشريط العلوي">
+                
+                <!-- Transparent click zones mapped over the image buttons -->
+                <!-- One-Click Trading toggle (Far Left) -->
+                <button class="header-overlay-btn" id="quick-trade-toggle-btn" title="تداول بضغطة واحدة" style="left: 3%; width: 10%;"></button>
+                <!-- Timeframe Clock toggle (Second from Left) -->
+                <button class="header-overlay-btn" id="tf-clock-btn" title="التردد الزمني" style="left: 14%; width: 10%;"></button>
+                <!-- Elements click area (Center-Left) -->
+                <button class="header-overlay-btn" id="elements-overlay-btn" title="العناصر" style="left: 34%; width: 10%;"></button>
+                <!-- Indicators click area (Center) -->
+                <button class="header-overlay-btn" id="indicators-overlay-btn" title="المؤشرات" style="left: 45%; width: 10%;"></button>
+                <!-- Crosshair click area (Center-Right) -->
+                <button class="header-overlay-btn" id="crosshair-overlay-btn" title="علامة التصويب" style="left: 56%; width: 10%;"></button>
+                <!-- Timeframe text display button (Far Right) -->
+                <button class="header-overlay-btn" id="tf-display-btn" title="التردد الزمني" style="right: 3%; width: 10%;"></button>
+            </div>
+
+            <!-- Timeframe selector dropdown -->
+            <div class="timeframe-dropdown hidden" id="tf-dropdown">
+                <div class="tf-option active" data-tf="M5">M5 (5 دقائق)</div>
+                <div class="tf-option" data-tf="M1">M1 (دقيقة)</div>
+                <div class="tf-option" data-tf="M15">M15 (15 دقيقة)</div>
+                <div class="tf-option" data-tf="M30">M30 (30 دقيقة)</div>
+                <div class="tf-option" data-tf="H1">H1 (ساعة)</div>
+                <div class="tf-option" data-tf="H4">H4 (4 ساعات)</div>
+                <div class="tf-option" data-tf="D1">D1 (يومي)</div>
+            </div>
+
+            <!-- MT5 One-Click Trading Panel (Toggleable, Styled with CSS) -->
+            <div class="trading-panel hidden" id="one-click-panel">
+                <div class="trade-btn sell" id="quick-sell-btn">
+                    <span class="btn-label">SELL</span>
+                    <span class="price-val" id="sell-price-display">3982.<span class="large-price">01</span><sup class="super-price">3</sup></span>
+                </div>
+                <div class="lot-selector">
+                    <button class="lot-adjust" id="lot-down">▼</button>
+                    <input type="number" id="lot-input" value="1.00" step="0.01" min="0.01">
+                    <button class="lot-adjust" id="lot-up">▲</button>
+                </div>
+                <div class="trade-btn buy" id="quick-buy-btn">
+                    <span class="btn-label">BUY</span>
+                    <span class="price-val" id="buy-price-display">3982.<span class="large-price">06</span><sup class="super-price">3</sup></span>
+                </div>
+            </div>
+
+            <!-- Main App Content Container -->
+            <div class="app-body">
+                <!-- Quotes Page (Hidden by default) -->
+                <div class="page hidden" id="page-quotes">
+                    <div class="page-header">الأسعار (Quotes)</div>
+                    <div class="quotes-list">
+                        <div class="quote-item">
+                            <div class="quote-symbol">XAUUSD</div>
+                            <div class="quote-prices">
+                                <div class="quote-price sell" id="quote-sell-val">3982.01</div>
+                                <div class="quote-price buy" id="quote-buy-val">3982.06</div>
+                            </div>
+                        </div>
+                        <div class="quote-item">
+                            <div class="quote-symbol">EURUSD</div>
+                            <div class="quote-prices">
+                                <div class="quote-price sell">1.0842</div>
+                                <div class="quote-price buy">1.0843</div>
+                            </div>
+                        </div>
+                        <div class="quote-item">
+                            <div class="quote-symbol">GBPUSD</div>
+                            <div class="quote-prices">
+                                <div class="quote-price sell">1.2631</div>
+                                <div class="quote-price buy">1.2633</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trade Page (Hidden by default) -->
+                <div class="page hidden" id="page-trade">
+                    <div class="page-header">تداول (Trade)</div>
+                    <div class="balance-card">
+                        <div class="balance-row">
+                            <span>الرصيد:</span>
+                            <span id="balance-val">$10,000.00</span>
+                        </div>
+                        <div class="balance-row">
+                            <span>حقوق الملكية (Equity):</span>
+                            <span id="equity-val">$10,000.00</span>
+                        </div>
+                        <div class="balance-row">
+                            <span>الهامش المتاح:</span>
+                            <span id="margin-free-val">$10,000.00</span>
+                        </div>
+                    </div>
+                    <div class="positions-list" id="positions-list-container">
+                        <div class="no-positions">لا توجد صفقات مفتوحة حالياً.</div>
+                    </div>
+                </div>
+
+                <!-- History Page (Hidden by default) -->
+                <div class="page hidden" id="page-history">
+                    <div class="page-header">التاريخ (History)</div>
+                    <div class="history-list" id="history-list-container">
+                        <div class="no-history">لا توجد صفقات مغلقة في السجل.</div>
+                    </div>
+                </div>
+
+                <!-- Settings Page (Hidden by default) -->
+                <div class="page hidden" id="page-settings">
+                    <div class="page-header">الإعدادات (Settings)</div>
+                    <div class="settings-group">
+                        <div class="settings-title">حساب التداول التجريبي</div>
+                        <div class="settings-item">
+                            <span>رأس المال المبدئي</span>
+                            <input type="number" id="initial-balance-input" value="10000" style="width: 100px; text-align: left;">
+                        </div>
+                        <button class="settings-btn" id="reset-balance-btn">إعادة تعيين الحساب</button>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-title">استيراد البيانات التاريخية</div>
+                        <div class="settings-item">
+                            <span>ملف CSV للشموع</span>
+                            <label class="csv-upload-label">
+                                اختر ملف CSV
+                                <input type="file" id="csv-file-input" accept=".csv" class="hidden">
+                            </label>
+                        </div>
+                        <div style="font-size: 10px; color: #888; margin-top: 5px;">
+                            تنسيق CSV الموصى به: Date, Time, Open, High, Low, Close أو Time, Open, High, Low, Close
+                        </div>
+                        <button class="settings-btn" id="reset-data-btn" style="background-color: #777; margin-top: 10px;">إعادة تعيين البيانات الافتراضية</button>
+                    </div>
+                </div>
+
+                <!-- Chart Page (Active by default) -->
+                <div class="page" id="page-chart">
+                    <div class="chart-container">
+                        <!-- Chart info overlay in top-left (Clickable to toggle timeframe or settings) -->
+                        <div class="chart-info" id="chart-title-toggle">
+                            <div class="symbol-timeframe">
+                                <span class="symbol-blue">XAUUSDr</span>
+                                <span class="arrow-blue">▼</span>
+                                <span class="tf-grey" id="active-tf-display">M5</span>
+                            </div>
+                            <div class="symbol-desc">Gold vs US Dollar</div>
+                        </div>
+
+                        <!-- Canvas for drawing the chart -->
+                        <canvas id="main-chart-canvas"></canvas>
+
+                        <!-- Canvas overlay for crosshair tool info -->
+                        <div class="crosshair-info hidden" id="crosshair-val-x">--:--</div>
+                        <div class="crosshair-info hidden" id="crosshair-val-y">------</div>
+
+                        <!-- Replay panel toggle button (transparent overlay in the bottom-right over the three dots) -->
+                        <button class="replay-toggle-btn" id="replay-panel-toggle" title="لوحة الإعادة"></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Replay Control Panel (الريبلي مود) -->
+            <div class="replay-controls-panel hidden" id="replay-widget">
+                <div class="replay-title">وضع إعادة تشغيل البيانات (Replay Mode)</div>
+                <div class="replay-row">
+                    <button class="replay-btn" id="replay-prev" title="الشمعة السابقة">⏮</button>
+                    <button class="replay-btn" id="replay-play" title="تشغيل">▶</button>
+                    <button class="replay-btn" id="replay-pause" title="إيقاف مؤقت">⏸</button>
+                    <button class="replay-btn" id="replay-next" title="الشمعة التالية">⏭</button>
+                </div>
+                <div class="replay-speed-row">
+                    <span style="font-size: 11px; margin-right: 5px; margin-left: 5px;">السرعة:</span>
+                    <button class="speed-btn active" data-speed="1">1x</button>
+                    <button class="speed-btn" data-speed="2">2x</button>
+                    <button class="speed-btn" data-speed="5">5x</button>
+                    <button class="speed-btn" data-speed="10">10x</button>
+                </div>
+                <div class="replay-progress">
+                    <span id="replay-candle-count">الشموع: 0 / 0</span>
+                </div>
+            </div>
+
+            <!-- Sliced MT5 Bottom Navigation Image with Interactive Overlay Click Zones -->
+            <div class="bottom-nav-container">
+                <img src="الشريط السفلي.JPG" class="bottom-nav-img" alt="الشريط السفلي">
+                
+                <!-- Transparent click zones for 5 tabs -->
+                <!-- Quotes (الأسعار) - Far Right -->
+                <button class="nav-overlay-btn" id="nav-quotes" data-target="page-quotes" style="right: 0;"></button>
+                <!-- Chart (رسم بياني) - Second from Right -->
+                <button class="nav-overlay-btn" id="nav-chart" data-target="page-chart" style="right: 20%;"></button>
+                <!-- Trade (تداول) - Center -->
+                <button class="nav-overlay-btn" id="nav-trade" data-target="page-trade" style="right: 40%;"></button>
+                <!-- History (التاريخ) - Second from Left -->
+                <button class="nav-overlay-btn" id="nav-history" data-target="page-history" style="right: 60%;"></button>
+                <!-- Settings (الإعدادات) - Far Left -->
+                <button class="nav-overlay-btn" id="nav-settings" data-target="page-settings" style="right: 80%;"></button>
+            </div>
+
+            <!-- iOS Home Indicator -->
+            <div class="iphone-home-indicator"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
