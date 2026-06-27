@@ -339,10 +339,10 @@ function drawChart() {
         ctx.lineTo(MARGIN_LEFT + chartWidth + 3, y);
         ctx.stroke();
         
-        ctx.textAlign = 'left';
+        ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
         ctx.letterSpacing = '1.5px';
-        ctx.fillText(gridPrice.toFixed(3), MARGIN_LEFT + chartWidth + 6, y, 55);
+        ctx.fillText(gridPrice.toFixed(3), State.width - 6, y, 55);
         ctx.restore();
     }
     

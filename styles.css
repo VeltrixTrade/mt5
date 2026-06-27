@@ -87,14 +87,24 @@ button, input, select, textarea {
         height: 100dvh !important;
     }
     
+    /* Compact bottom nav bar for mobile viewports (Safari & general mobile) */
+    .bottom-nav-container {
+        height: 68px !important;
+    }
+    .bottom-nav-img {
+        height: 68px !important;
+        object-fit: fill !important;
+    }
+    .nav-overlay-btn {
+        height: 68px !important;
+    }
+    .nav-mask, .nav-tint {
+        height: 68px !important;
+    }
+    
     /* Default browser mode: hide status-bar-spacer to remove top white gap */
     .status-bar-spacer {
         display: none;
-    }
-    
-    /* Adjust nav masks height to prevent them from drawing over the bottom safe area padding */
-    .nav-mask, .nav-tint {
-        height: 80px !important;
     }
     
     /* Standalone PWA mode classes */
@@ -106,6 +116,12 @@ button, input, select, textarea {
         flex-shrink: 0;
     }
     
+    .standalone-mode .bottom-nav-container {
+        height: 83px !important;
+        padding-bottom: 15px !important;
+        background: #ffffff !important;
+    }
+    
     /* Standalone media query backup */
     @media (display-mode: standalone) {
         .status-bar-spacer {
@@ -114,6 +130,11 @@ button, input, select, textarea {
             background: #ffffff;
             width: 100%;
             flex-shrink: 0;
+        }
+        .bottom-nav-container {
+            height: 83px !important;
+            padding-bottom: 15px !important;
+            background: #ffffff !important;
         }
     }
 }
