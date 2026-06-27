@@ -1,7 +1,7 @@
-/**
- * MT5 Chart Simulator - XAUUSD M5
- * Core Application Logic (Hybrid Interactive Image & Canvas Mockup)
- */
+// --- STANDALONE MODE DETECTION ---
+if (window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches) {
+    document.documentElement.classList.add('standalone-mode');
+}
 
 // --- STATE MANAGEMENT ---
 const State = {

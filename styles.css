@@ -65,19 +65,67 @@ button, input, select, textarea {
 
 /* On mobile viewports: occupy the full viewport */
 @media (max-width: 450px) {
+    html, body {
+        height: 100dvh !important;
+        min-height: 100dvh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
     body {
         background-color: #fff;
     }
     .iphone-frame {
         width: 100vw;
-        height: 100vh;
-        max-height: 100vh;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
         border-radius: 0;
         border: none;
         box-shadow: none;
     }
+    .iphone-screen {
+        height: 100dvh !important;
+    }
+    
+    /* Default browser mode: hide status-bar-spacer to remove top white gap */
     .status-bar-spacer {
+        display: none;
+    }
+    
+    /* Adjust nav masks height to prevent them from drawing over the bottom safe area padding */
+    .nav-mask, .nav-tint {
+        height: 80px !important;
+    }
+    
+    /* Standalone PWA mode classes */
+    .standalone-mode .status-bar-spacer {
+        display: block;
         height: env(safe-area-inset-top, 47px);
+        background: #ffffff;
+        width: 100%;
+        flex-shrink: 0;
+    }
+    
+    .standalone-mode .bottom-nav-container {
+        height: calc(80px + env(safe-area-inset-bottom, 34px)) !important;
+        padding-bottom: env(safe-area-inset-bottom, 34px) !important;
+        background: #ffffff !important;
+    }
+    
+    /* Standalone media query backup */
+    @media (display-mode: standalone) {
+        .status-bar-spacer {
+            display: block;
+            height: env(safe-area-inset-top, 47px);
+            background: #ffffff;
+            width: 100%;
+            flex-shrink: 0;
+        }
+        .bottom-nav-container {
+            height: calc(80px + env(safe-area-inset-bottom, 34px)) !important;
+            padding-bottom: env(safe-area-inset-bottom, 34px) !important;
+            background: #ffffff !important;
+        }
     }
 }
 
