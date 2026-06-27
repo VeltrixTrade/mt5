@@ -3,7 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>MT5 Chart Simulator - XAUUSD M5</title>
+    <title>MT5 Chart Simulator - XAUUSDr M5</title>
+    
+    <!-- PWA & Standalone App Configuration -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="مبت تريدر 5">
+    <link rel="apple-touch-icon" href="public/icon-192.png">
+    
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -27,8 +35,6 @@
                 <button class="header-overlay-btn" id="indicators-overlay-btn" title="المؤشرات" style="left: 45%; width: 10%;"></button>
                 <!-- Crosshair click area (Center-Right) -->
                 <button class="header-overlay-btn" id="crosshair-overlay-btn" title="علامة التصويب" style="left: 56%; width: 10%;"></button>
-                <!-- Timeframe text display button (Far Right) -->
-                <button class="header-overlay-btn" id="tf-display-btn" title="التردد الزمني" style="right: 3%; width: 10%;"></button>
             </div>
 
             <!-- Timeframe selector dropdown -->
@@ -140,10 +146,23 @@
                                 <input type="file" id="csv-file-input" accept=".csv" class="hidden">
                             </label>
                         </div>
-                        <div style="font-size: 10px; color: #888; margin-top: 5px;">
+                        <div style="font-size: 10px; color: #888; margin-top: 5px; padding: 0 15px;">
                             تنسيق CSV الموصى به: Date, Time, Open, High, Low, Close أو Time, Open, High, Low, Close
                         </div>
                         <button class="settings-btn" id="reset-data-btn" style="background-color: #777; margin-top: 10px;">إعادة تعيين البيانات الافتراضية</button>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-title">تثبيت التطبيق على الجوال</div>
+                        <div style="padding: 15px; font-size: 13px; color: #333; line-height: 1.6; text-align: right; font-family: Arial, sans-serif;">
+                            <p style="font-weight: bold; color: #000; margin-bottom: 8px;">لتثبيت الموقع وتصفحه كتطبيق مستقل كامل الشاشة:</p>
+                            <ol style="margin-right: 20px; margin-top: 5px; padding-right: 10px;">
+                                <li>اضغط على زر <strong>مشاركة (Share)</strong> <span style="font-size: 16px; color: #2962ff;">⎙</span> في شريط Safari السفلي.</li>
+                                <li>اختر <strong>إضافة إلى الشاشة الرئيسية (Add to Home Screen)</strong> من الخيارات.</li>
+                                <li>انقر فوق <strong>إضافة (Add)</strong> لتثبيت التطبيق.</li>
+                            </ol>
+                            <p style="margin-top: 10px; font-size: 11px; color: #8e8e93;">* عند فتح التطبيق من شاشتك الرئيسية، سيعمل بدون حواف المتصفح وبنفس مقاس الهاتف.</p>
+                        </div>
                     </div>
                 </div>
 
@@ -153,7 +172,7 @@
                         <!-- Chart info overlay in top-left (Clickable to toggle timeframe or settings) -->
                         <div class="chart-info" id="chart-title-toggle">
                             <div class="symbol-timeframe">
-                                <span class="symbol-blue">XAUUSDr</span>
+                                <span class="symbol-blue">XAUUSD</span>
                                 <span class="arrow-blue">▼</span>
                                 <span class="tf-grey" id="active-tf-display">M5</span>
                             </div>
@@ -198,6 +217,10 @@
             <div class="bottom-nav-container">
                 <img src="الشريط السفلي.JPG" class="bottom-nav-img" alt="الشريط السفلي">
                 
+                <!-- Helper masks to visually change the active tab -->
+                <div class="nav-mask" id="nav-mask-chart-grey"></div>
+                <div class="nav-tint" id="nav-tint-active"></div>
+                
                 <!-- Transparent click zones for 5 tabs -->
                 <!-- Quotes (الأسعار) - Far Right -->
                 <button class="nav-overlay-btn" id="nav-quotes" data-target="page-quotes" style="right: 0;"></button>
@@ -211,8 +234,6 @@
                 <button class="nav-overlay-btn" id="nav-settings" data-target="page-settings" style="right: 80%;"></button>
             </div>
 
-            <!-- iOS Home Indicator -->
-            <div class="iphone-home-indicator"></div>
         </div>
     </div>
 

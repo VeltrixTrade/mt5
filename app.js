@@ -12,7 +12,7 @@ const State = {
     
     // Chart View State
     candles: [],         // All historical candles
-    zoom: 12,            // Candle spacing + width in pixels
+    zoom: 8,             // Candle spacing + width in pixels (reduced to fit 4 time labels spaced closer on mobile)
     panOffset: 0,        // Horizontal scroll offset (in candles)
     panOffsetY: 0,       // Vertical scroll offset (in pixels)
     isAutoYScale: true,  // Automatically fit price scale to visible candles
@@ -93,16 +93,48 @@ const crosshairValX = document.getElementById('crosshair-val-x');
 const crosshairValY = document.getElementById('crosshair-val-y');
 
 // Layout boundaries
-const MARGIN_RIGHT = 75;  // Space for price axis
-const MARGIN_BOTTOM = 25; // Space for time axis
-const MARGIN_TOP = 15;
-const MARGIN_LEFT = 5;
+const MARGIN_RIGHT = 68;  // Space for price axis (exactly 68px as in original MT5)
+const MARGIN_BOTTOM = 18; // Space for time axis (98px from bottom of screen: 18px margin + 80px nav)
+const MARGIN_TOP = 1;     // Space at top (91px from top of screen)
+const MARGIN_LEFT = 0;    // Starts at 0 to make chart width exactly 322px (390 - 68)
+
+// Helvetica Neue font family stack
+const FONT_STACK = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+
+// --- TIME ROUNDING UTILITY ---
+function getRoundedStartTime(timeframeMinutes) {
+    const d = new Date();
+    d.setSeconds(0, 0); // zero out seconds and milliseconds
+    
+    if (timeframeMinutes < 60) {
+        // M1, M5, M15, M30: round minutes
+        const mins = d.getMinutes();
+        const roundedMins = Math.floor(mins / timeframeMinutes) * timeframeMinutes;
+        d.setMinutes(roundedMins);
+    } else if (timeframeMinutes === 60) {
+        // H1: round to start of hour
+        d.setMinutes(0);
+    } else if (timeframeMinutes === 240) {
+        // H4: round to start of hour, and round hour to multiple of 4
+        d.setMinutes(0);
+        const hrs = d.getHours();
+        const roundedHrs = Math.floor(hrs / 4) * 4;
+        d.setHours(roundedHrs);
+    } else {
+        // D1: round to start of day
+        d.setHours(0, 0, 0, 0);
+    }
+    return d;
+}
 
 // --- MOCK DATA GENERATION ---
 function generateMockData() {
     const candles = [];
-    let price = 3985.00;
-    let time = new Date(Date.now() - 500 * State.timeframeMinutes * 60 * 1000); // 500 candles ago
+    let price = 4050.00; // fits the range in the screenshot 4032.545 to 4067.410
+    
+    // Round current time to clean timeframe intervals in local time
+    let startTime = getRoundedStartTime(State.timeframeMinutes);
+    let time = new Date(startTime.getTime() - 500 * State.timeframeMinutes * 60 * 1000); // 500 candles ago
     
     for (let i = 0; i < 600; i++) {
         const timeStr = formatTimeLabel(time);
@@ -112,11 +144,10 @@ function generateMockData() {
         const volatility = 2.2;
         const change = (Math.random() - 0.5) * volatility + drift;
         
-        const open = parseFloat((price).toFixed(3));
-        const close = parseFloat((price + change).toFixed(3));
-        
-        const high = parseFloat((Math.max(open, close) + Math.random() * 1.5).toFixed(3));
-        const low = parseFloat((Math.min(open, close) - Math.random() * 1.5).toFixed(3));
+        const open = price;
+        const close = price + change;
+        const high = Math.max(open, close) + Math.random() * 1.5;
+        const low = Math.min(open, close) - Math.random() * 1.5;
         
         candles.push({
             time: new Date(time),
@@ -130,6 +161,27 @@ function generateMockData() {
         price = close;
         time.setMinutes(time.getMinutes() + State.timeframeMinutes);
     }
+    
+    // Normalize candle prices to fit the range [4036.5, 4063.0] beautifully on load
+    const targetMin = 4036.5;
+    const targetMax = 4063.0;
+    
+    let currentMin = Infinity;
+    let currentMax = -Infinity;
+    
+    candles.forEach(c => {
+        if (c.low < currentMin) currentMin = c.low;
+        if (c.high > currentMax) currentMax = c.high;
+    });
+    
+    const scale = (targetMax - targetMin) / (currentMax - currentMin);
+    
+    candles.forEach(c => {
+        c.open = parseFloat((targetMin + (c.open - currentMin) * scale).toFixed(3));
+        c.high = parseFloat((targetMin + (c.high - currentMin) * scale).toFixed(3));
+        c.low = parseFloat((targetMin + (c.low - currentMin) * scale).toFixed(3));
+        c.close = parseFloat((targetMin + (c.close - currentMin) * scale).toFixed(3));
+    });
     
     State.candles = candles;
     State.replayIndex = Math.min(100, candles.length - 10);
@@ -170,7 +222,7 @@ function resizeCanvas() {
 }
 
 function getPriceRange(visibleCandles) {
-    if (visibleCandles.length === 0) return { min: 3950, max: 4050 };
+    if (visibleCandles.length === 0) return { min: 4032.545, max: 4067.410 };
     
     let min = Infinity;
     let max = -Infinity;
@@ -196,6 +248,9 @@ function getPriceRange(visibleCandles) {
 
 function drawChart() {
     if (State.width === 0 || State.height === 0 || State.candles.length === 0) return;
+    
+    // Force LTR direction on canvas to prevent system-level RTL shuffling of numbers and timestamps
+    ctx.direction = 'ltr';
     
     // Clear canvas
     ctx.fillStyle = '#ffffff';
@@ -254,40 +309,60 @@ function drawChart() {
     ctx.strokeStyle = '#e2e2e4';
     ctx.lineWidth = 0.5;
     ctx.setLineDash([1, 2]); // dotted lines
-    ctx.font = '9px Arial, sans-serif';
-    ctx.fillStyle = '#8e8e93';
+    ctx.font = '11px ' + FONT_STACK;
+    ctx.fillStyle = '#6e717a';
     
-    // Horizontal price grid lines
-    const priceInterval = (priceMax - priceMin) / 10;
-    for (let i = 0; i <= 10; i++) {
-        const gridPrice = priceMin + i * priceInterval;
-        const y = getY(gridPrice);
+    // Price grid lines: 15 labels, spaced to fit exactly 99px top offset and 135px bottom offset.
+    // Top-most price label is at screen Y = 104.5px center (canvas Y = 13.5px, top of text is screen Y = 99px).
+    // Bottom-most price label is at screen Y = 703.5px center (canvas Y = 612.5px, bottom of text is screen Y = 709px).
+    const priceCount = 15;
+    const yStart = 13.5;
+    const yStep = 42.785;
+    
+    for (let i = 0; i < priceCount; i++) {
+        const y = yStart + i * yStep;
+        const gridPrice = getPriceFromY(y);
         
-        if (y >= MARGIN_TOP && y <= MARGIN_TOP + chartHeight) {
-            ctx.beginPath();
-            ctx.moveTo(MARGIN_LEFT, y);
-            ctx.lineTo(MARGIN_LEFT + chartWidth, y);
-            ctx.stroke();
-            
-            ctx.save();
-            ctx.setLineDash([]); // solid text
-            ctx.textAlign = 'left';
-            ctx.fillText(gridPrice.toFixed(3), MARGIN_LEFT + chartWidth + 5, y + 3);
-            ctx.restore();
-        }
+        ctx.beginPath();
+        ctx.moveTo(MARGIN_LEFT, y);
+        ctx.lineTo(MARGIN_LEFT + chartWidth, y);
+        ctx.stroke();
+        
+        ctx.save();
+        ctx.setLineDash([]); // solid text and ticks
+        ctx.strokeStyle = '#cbcbcb';
+        ctx.lineWidth = 1;
+        
+        // Draw axis tick pointing rightwards
+        ctx.beginPath();
+        ctx.moveTo(MARGIN_LEFT + chartWidth, y);
+        ctx.lineTo(MARGIN_LEFT + chartWidth + 3, y);
+        ctx.stroke();
+        
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.letterSpacing = '1.5px';
+        ctx.fillText(gridPrice.toFixed(3), MARGIN_LEFT + chartWidth + 6, y, 55);
+        ctx.restore();
     }
     
-    // Vertical time grid lines (spaced cleanly)
-    let timeInterval = 16;
-    if (candleSpacing < 6) timeInterval = 32;
-    else if (candleSpacing > 18) timeInterval = 8;
+    // 2. Vertical time grid lines (exactly 4 labels spaced at specific pixel offsets: 30px from left, 96px between each)
+    const targetXPositions = [
+        MARGIN_LEFT + 30,
+        MARGIN_LEFT + 30 + 96,
+        MARGIN_LEFT + 30 + 96 * 2,
+        MARGIN_LEFT + 30 + 96 * 3
+    ];
     
-    let firstGridIndex = endIndex - (endIndex % timeInterval);
-    
-    for (let i = firstGridIndex; i >= startIndex; i -= timeInterval) {
-        const x = getX(i);
-        const candle = activeCandles[i];
-        if (!candle) continue;
+    targetXPositions.forEach((targetX, index) => {
+        // Find nearest candle index corresponding to targetX
+        let idx = endIndex - Math.round((MARGIN_LEFT + chartWidth - targetX - candleSpacing / 2) / candleSpacing);
+        idx = Math.max(startIndex, Math.min(idx, endIndex));
+        
+        const candle = activeCandles[idx];
+        if (!candle) return;
+        
+        const x = getX(idx);
         
         ctx.beginPath();
         ctx.moveTo(x, MARGIN_TOP);
@@ -295,13 +370,24 @@ function drawChart() {
         ctx.stroke();
         
         ctx.save();
-        ctx.setLineDash([]); // solid text
-        ctx.textAlign = 'center';
-        ctx.font = '9px Arial, sans-serif';
-        ctx.fillStyle = '#8e8e93';
-        ctx.fillText(candle.timeLabel, x, MARGIN_TOP + chartHeight + 14);
+        ctx.setLineDash([]); // solid text and ticks
+        ctx.strokeStyle = '#cbcbcb';
+        ctx.lineWidth = 1;
+        
+        // Draw axis tick pointing downwards (adding 4 to y)
+        ctx.beginPath();
+        ctx.moveTo(x, MARGIN_TOP + chartHeight);
+        ctx.lineTo(x, MARGIN_TOP + chartHeight + 4);
+        ctx.stroke();
+        
+        if (index < targetXPositions.length - 1) {
+            ctx.textAlign = 'left';
+            ctx.font = '11px ' + FONT_STACK;
+            ctx.fillStyle = '#5A5A5F';
+            ctx.fillText(candle.timeLabel, x + 3, MARGIN_TOP + chartHeight + 14, 73);
+        }
         ctx.restore();
-    }
+    });
     ctx.restore();
     
     // 2. Draw Candlesticks (TradingView Style: Green & Red)
@@ -361,7 +447,7 @@ function drawChart() {
             ctx.restore();
             
             ctx.fillStyle = color;
-            ctx.font = 'bold 9px Arial, sans-serif';
+            ctx.font = 'bold 9px ' + FONT_STACK;
             ctx.fillText(`${pos.type} ${pos.lot.toFixed(2)}`, MARGIN_LEFT + 5, y - 4);
         }
     });
@@ -372,7 +458,7 @@ function drawChart() {
     
     if (curY >= MARGIN_TOP && curY <= MARGIN_TOP + chartHeight) {
         ctx.save();
-        ctx.strokeStyle = '#a05050';
+        ctx.strokeStyle = '#00A86B';
         ctx.setLineDash([2, 3]);
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -381,37 +467,42 @@ function drawChart() {
         ctx.stroke();
         ctx.restore();
         
-        const boxWidth = 65;
-        const boxHeight = 26;
-        const boxX = MARGIN_LEFT + chartWidth;
+        ctx.save();
+        const boxWidth = 62;
+        const boxHeight = 14;
+        const boxX = MARGIN_LEFT + chartWidth + 2;
         const boxY = curY - boxHeight / 2;
         
-        ctx.fillStyle = varColor('--mt5-price-bg', '#26a69a');
+        // Draw price box: solid green background
+        ctx.fillStyle = '#00A86B';
         ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
         
+        // Price text: same size (11px) as static price labels, color #ffffff for high contrast
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 10px Arial, sans-serif';
+        ctx.font = '400 11px ' + FONT_STACK;
         ctx.textAlign = 'center';
-        ctx.fillText(currentPrice.toFixed(3), boxX + boxWidth / 2, boxY + 11);
-        
-        // Timer countdown format MM:SS
-        const secondsRemaining = getSecondsToNextCandle();
-        const mins = String(Math.floor(secondsRemaining / 60)).padStart(2, '0');
-        const secs = String(secondsRemaining % 60).padStart(2, '0');
-        ctx.font = '8px Arial, sans-serif';
-        ctx.fillText(`${mins}:${secs}`, boxX + boxWidth / 2, boxY + 22);
+        ctx.textBaseline = 'middle';
+        ctx.letterSpacing = '1.5px';
+        ctx.fillText(currentPrice.toFixed(3), boxX + boxWidth / 2, curY, 55);
+        ctx.restore();
     }
     
     // 5. Draw Axis Separators & Three Dots
     ctx.save();
-    ctx.strokeStyle = '#dcdcdc';
+    ctx.strokeStyle = '#cbcbcb';
     ctx.lineWidth = 1;
     ctx.setLineDash([]); // solid border separator lines
     
-    // Vertical separator on the right
+    // Vertical separator next to the price scale (starts at the very top y=0 to connect with the header toolbar)
     ctx.beginPath();
-    ctx.moveTo(MARGIN_LEFT + chartWidth, MARGIN_TOP);
+    ctx.moveTo(MARGIN_LEFT + chartWidth, 0);
     ctx.lineTo(MARGIN_LEFT + chartWidth, MARGIN_TOP + chartHeight);
+    ctx.stroke();
+    
+    // Horizontal separator at the top (stops at the vertical separator line, forming a sharp corner)
+    ctx.beginPath();
+    ctx.moveTo(0, 0.5);
+    ctx.lineTo(MARGIN_LEFT + chartWidth, 0.5);
     ctx.stroke();
     
     // Horizontal separator at the bottom
@@ -420,12 +511,26 @@ function drawChart() {
     ctx.lineTo(MARGIN_LEFT + chartWidth, MARGIN_TOP + chartHeight);
     ctx.stroke();
     
-    // Draw three dots '...' on the bottom right corner (the intersection rectangle)
-    ctx.fillStyle = '#8e8e93';
-    ctx.font = 'bold 12px Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('...', MARGIN_LEFT + chartWidth + MARGIN_RIGHT / 2, MARGIN_TOP + chartHeight + MARGIN_BOTTOM / 2 - 3);
+    // Draw three circles grouping together to form '...' with exactly 18px width, 4px height, 113px from screen bottom, and first dot starting exactly 25px to the right of the vertical separator line (x=322px)
+    const dotY = 640;
+    const dotX = MARGIN_LEFT + chartWidth + 34; // 322 + 34 = 356px (left edge of first dot starts at 356 - 7 - 2 = 347px, exactly 25px from vertical line)
+    ctx.fillStyle = '#40424b';
+    
+    // Draw Dot 1
+    ctx.beginPath();
+    ctx.arc(dotX - 7, dotY, 2, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Draw Dot 2
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, 2, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Draw Dot 3
+    ctx.beginPath();
+    ctx.arc(dotX + 7, dotY, 2, 0, 2 * Math.PI);
+    ctx.fill();
+    
     ctx.restore();
     
     // 6. Draw Crosshair
@@ -1000,6 +1105,32 @@ function switchPage(targetPageId) {
         }
     });
     
+    // Update bottom nav visual tab indicator overlays
+    const maskChartGrey = document.getElementById('nav-mask-chart-grey');
+    const tintActive = document.getElementById('nav-tint-active');
+    
+    if (maskChartGrey && tintActive) {
+        if (targetPageId === 'page-chart') {
+            // Chart page is active: no masks/tints needed (default image is correct)
+            maskChartGrey.classList.remove('active');
+            tintActive.classList.remove('active');
+        } else {
+            // Other page is active: make chart tab grey, and tint the active tab blue
+            maskChartGrey.classList.add('active');
+            tintActive.classList.add('active');
+            
+            // Position the blue tint over the active tab column
+            // Columns from right to left: Quotes (0), Chart (1), Trade (2), History (3), Settings (4)
+            let columnIdx = 1; // default to chart
+            if (targetPageId === 'page-quotes') columnIdx = 0;
+            else if (targetPageId === 'page-trade') columnIdx = 2;
+            else if (targetPageId === 'page-history') columnIdx = 3;
+            else if (targetPageId === 'page-settings') columnIdx = 4;
+            
+            tintActive.style.right = `${columnIdx * 20}%`;
+        }
+    }
+    
     if (targetPageId === 'page-chart') {
         setTimeout(resizeCanvas, 50);
     }
@@ -1033,7 +1164,7 @@ document.addEventListener('click', (e) => {
     if (!tfDropdown.classList.contains('hidden') && 
         !tfDropdown.contains(e.target) && 
         e.target !== tfClockBtn && 
-        e.target !== tfDisplayBtn) {
+        (!tfDisplayBtn || e.target !== tfDisplayBtn)) {
         tfDropdown.classList.add('hidden');
     }
 });
@@ -1043,10 +1174,12 @@ tfClockBtn.addEventListener('click', (e) => {
     toggleTimeframeDropdown();
 });
 
-tfDisplayBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleTimeframeDropdown();
-});
+if (tfDisplayBtn) {
+    tfDisplayBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleTimeframeDropdown();
+    });
+}
 
 // Dropdown options click handler
 document.querySelectorAll('.tf-option').forEach(option => {
@@ -1058,6 +1191,7 @@ document.querySelectorAll('.tf-option').forEach(option => {
         
         const tf = option.dataset.tf;
         activeTfDisplay.textContent = tf;
+        tfDisplayBtn.textContent = tf; // update the top-right button label!
         
         // Update timeframe state minutes
         let mins = 5;
@@ -1206,6 +1340,13 @@ window.addEventListener('load', () => {
     resizeCanvas();
     updateTradingPanelUI();
     updatePositionsProfit();
+    
+    // Register PWA Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js')
+            .then(() => console.log('PWA Service Worker Registered'))
+            .catch(err => console.log('Service Worker Registration Failed:', err));
+    }
 });
 
 window.addEventListener('resize', resizeCanvas);
