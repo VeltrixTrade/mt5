@@ -1,7 +1,7 @@
-// --- STANDALONE MODE DETECTION ---
-if (window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches) {
-    document.documentElement.classList.add('standalone-mode');
-}
+/**
+ * MT5 Chart Simulator - XAUUSD M5
+ * Core Application Logic (Hybrid Interactive Image & Canvas Mockup)
+ */
 
 // --- STATE MANAGEMENT ---
 const State = {
@@ -339,10 +339,10 @@ function drawChart() {
         ctx.lineTo(MARGIN_LEFT + chartWidth + 3, y);
         ctx.stroke();
         
-        ctx.textAlign = 'right';
+        ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         ctx.letterSpacing = '1.5px';
-        ctx.fillText(gridPrice.toFixed(3), State.width - 6, y, 55);
+        ctx.fillText(gridPrice.toFixed(3), MARGIN_LEFT + chartWidth + 6, y, 55);
         ctx.restore();
     }
     
