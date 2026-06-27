@@ -106,12 +106,6 @@ button, input, select, textarea {
         flex-shrink: 0;
     }
     
-    .standalone-mode .bottom-nav-container {
-        height: calc(80px + env(safe-area-inset-bottom, 34px)) !important;
-        padding-bottom: env(safe-area-inset-bottom, 34px) !important;
-        background: #ffffff !important;
-    }
-    
     /* Standalone media query backup */
     @media (display-mode: standalone) {
         .status-bar-spacer {
@@ -120,11 +114,6 @@ button, input, select, textarea {
             background: #ffffff;
             width: 100%;
             flex-shrink: 0;
-        }
-        .bottom-nav-container {
-            height: calc(80px + env(safe-area-inset-bottom, 34px)) !important;
-            padding-bottom: env(safe-area-inset-bottom, 34px) !important;
-            background: #ffffff !important;
         }
     }
 }
