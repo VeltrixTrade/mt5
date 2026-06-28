@@ -472,27 +472,78 @@ function drawChartFrame() {
         }
     });
     
-    // 3. Draw Active Trade Lines
+    // 3. Draw Active Trade Lines (BUY / SELL)
     State.positions.forEach(pos => {
-        const y = getY(pos.openPrice);
-        if (y >= MARGIN_TOP && y <= MARGIN_TOP + chartHeight) {
-            const color = State.colors.stopLevels;
-            
-            ctx.save();
-            ctx.strokeStyle = color;
-            ctx.setLineDash([4, 4]);
-            ctx.lineWidth = 1;
-            
-            ctx.beginPath();
-            ctx.moveTo(MARGIN_LEFT, y);
-            ctx.lineTo(MARGIN_LEFT + chartWidth, y);
-            ctx.stroke();
-            ctx.restore();
-            
-            ctx.fillStyle = color;
-            ctx.font = 'bold 9px ' + FONT_STACK;
-            ctx.fillText(`${pos.type} ${pos.lot.toFixed(2)}`, MARGIN_LEFT + 5, y - 4);
-        }
+        // Initialize animated variables if not already initialized
+        if (pos.opacity === undefined) pos.opacity = 0;
+        if (pos.animatedPrice === undefined) pos.animatedPrice = pos.openPrice;
+        
+        const y = getY(pos.animatedPrice);
+        if (y < MARGIN_TOP || y > MARGIN_TOP + chartHeight) return;
+        
+        const isBuy = pos.type === 'BUY';
+        
+        // Colors & fonts matching MT5 on iPhone 100%
+        const textColor = isBuy ? '#007aff' : '#e73d2b';
+        const strokeColor = isBuy ? '#007aff' : '#e73d2b';
+        const boxBgColor = '#FFFFFF';
+        
+        ctx.save();
+        ctx.globalAlpha = 0.7 * pos.opacity; // Opacity 0.7 for dashed line
+        ctx.strokeStyle = strokeColor;
+        ctx.setLineDash([5, 5]); // Dash pattern: 5px 5px
+        ctx.lineWidth = 1.0;      // Stroke width: 1px
+        
+        const boxX = MARGIN_LEFT + chartWidth + 1;
+        
+        // 1. Draw Dashed Line (extends from start of chart to start of price box)
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(boxX, y);
+        ctx.stroke();
+        ctx.restore();
+        
+        // 2. Draw Text (BUY [lotSize] or SELL [lotSize]) slightly above the dashed line
+        ctx.save();
+        ctx.globalAlpha = pos.opacity;
+        ctx.fillStyle = textColor;
+        ctx.font = '400 10px "Helvetica Neue", Helvetica, Arial, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.letterSpacing = 'normal'; // Standard spacing
+        
+        const lotText = pos.lot % 1 === 0 ? pos.lot.toFixed(0) : pos.lot.toString();
+        const textContent = `${pos.type} ${lotText}`;
+        ctx.fillText(textContent, 5, y - 2); // 5px left margin, 2px above line
+        ctx.restore();
+        
+        // 3. Draw Price Box stuck to right axis
+        ctx.save();
+        ctx.globalAlpha = pos.opacity;
+        
+        ctx.font = '400 10px "Helvetica Neue", Helvetica, Arial, sans-serif';
+        const priceText = pos.openPrice.toFixed(3);
+        const textWidth = ctx.measureText(priceText).width;
+        
+        const boxWidth = textWidth + 12; // 6px left, 6px right padding
+        const boxHeight = 22; // Height: 22px
+        const boxY = y - boxHeight / 2; // Center vertically
+        
+        // Draw background
+        ctx.fillStyle = boxBgColor;
+        ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+        
+        // Draw border: 1px Solid
+        ctx.strokeStyle = textColor;
+        ctx.lineWidth = 1.0;
+        ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+        
+        // Draw price text
+        ctx.fillStyle = textColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(priceText, boxX + boxWidth / 2, y);
+        ctx.restore();
     });
     
     // 4. Draw Current Price Lines (Bid and Ask) and Boxes
@@ -710,6 +761,32 @@ function drawChartFrame() {
             ctx.fillText('✂ بدء الإعادة', cutX, 42);
             ctx.restore();
         }
+    }
+    
+    // 8. Update Active Trade Lines Animations (Fade-in and LERP slide)
+    let needsMoreFrames = false;
+    State.positions.forEach(pos => {
+        // Opacity fade in (approx 150ms at 60fps)
+        if (pos.opacity === undefined) pos.opacity = 0;
+        if (pos.opacity < 1.0) {
+            pos.opacity += 0.12; 
+            if (pos.opacity > 1.0) pos.opacity = 1.0;
+            needsMoreFrames = true;
+        }
+        
+        // Price slide animation (approx 100-150ms at 60fps)
+        if (pos.animatedPrice === undefined) pos.animatedPrice = pos.openPrice;
+        const diff = pos.openPrice - pos.animatedPrice;
+        if (Math.abs(diff) > 0.0001) {
+            pos.animatedPrice += diff * 0.25;
+            needsMoreFrames = true;
+        } else {
+            pos.animatedPrice = pos.openPrice;
+        }
+    });
+    
+    if (needsMoreFrames) {
+        drawChart();
     }
 }
 
