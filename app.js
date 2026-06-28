@@ -41,13 +41,30 @@ const State = {
     
     // Replay Mode (وضع الإعادة)
     replayMode: false,
+    isReplaySelectMode: false,
+    replaySelectIndex: -1,
     replayIndex: 50,    // Number of candles revealed so far in replay mode
     replayIntervalId: null,
     replaySpeed: 1,     // Speed multiplier (1x, 2x, 5x, 10x)
     replayPlaying: false,
     
     // Timeframe Configuration
-    timeframeMinutes: 5
+    timeframeMinutes: 5,
+    
+    // Customizable Chart Colors
+    colors: JSON.parse(localStorage.getItem('mt5_chart_colors')) || {
+        foreground: '#6e717a',
+        grid: '#e2e2e4',
+        barUp: '#2962ff',
+        barDown: '#ff1744',
+        bull: '#2962ff',
+        bear: '#ff1744',
+        chartLine: '#00e676',
+        volumes: '#00b0ff',
+        bidLine: '#00A86B',
+        askLine: '#ff9f0a',
+        stopLevels: '#d50000'
+    }
 };
 
 // --- DOM ELEMENTS ---
@@ -73,6 +90,21 @@ const initialBalanceInput = document.getElementById('initial-balance-input');
 const resetBalanceBtn = document.getElementById('reset-balance-btn');
 const csvFileInput = document.getElementById('csv-file-input');
 const resetDataBtn = document.getElementById('reset-data-btn');
+
+// Color customization inputs
+const colorInputs = {
+    foreground: document.getElementById('color-foreground'),
+    grid: document.getElementById('color-grid'),
+    barUp: document.getElementById('color-bar-up'),
+    barDown: document.getElementById('color-bar-down'),
+    bull: document.getElementById('color-bull'),
+    bear: document.getElementById('color-bear'),
+    chartLine: document.getElementById('color-chart-line'),
+    volumes: document.getElementById('color-volumes'),
+    bidLine: document.getElementById('color-bid-line'),
+    askLine: document.getElementById('color-ask-line'),
+    stopLevels: document.getElementById('color-stop-levels')
+};
 
 // Quotes page elements
 const quoteSellValEl = document.getElementById('quote-sell-val');
@@ -246,7 +278,17 @@ function getPriceRange(visibleCandles) {
     };
 }
 
+let isRedrawPending = false;
 function drawChart() {
+    if (isRedrawPending) return;
+    isRedrawPending = true;
+    requestAnimationFrame(() => {
+        isRedrawPending = false;
+        drawChartFrame();
+    });
+}
+
+function drawChartFrame() {
     if (State.width === 0 || State.height === 0 || State.candles.length === 0) return;
     
     // Force LTR direction on canvas to prevent system-level RTL shuffling of numbers and timestamps
@@ -286,14 +328,16 @@ function drawChart() {
         State.manualYMin = priceMin;
         State.manualYMax = priceMax;
     } else {
-        priceMin = State.manualYMin + State.panOffsetY * ((State.manualYMax - State.manualYMin) / chartHeight);
-        priceMax = State.manualYMax + State.panOffsetY * ((State.manualYMax - State.manualYMin) / chartHeight);
+        priceMin = State.manualYMin;
+        priceMax = State.manualYMax;
     }
+    
+    const RIGHT_PADDING = 25; // 25px gap between latest candle and price axis line
     
     // Coordinate conversions
     function getX(candleIndex) {
         const offsetFromEnd = endIndex - candleIndex;
-        return MARGIN_LEFT + chartWidth - (offsetFromEnd * candleSpacing) - (candleSpacing / 2);
+        return MARGIN_LEFT + chartWidth - RIGHT_PADDING - (offsetFromEnd * candleSpacing) - (candleSpacing / 2);
     }
     
     function getY(price) {
@@ -306,15 +350,13 @@ function drawChart() {
     
     // 1. Draw Dotted Grid Lines
     ctx.save();
-    ctx.strokeStyle = '#e2e2e4';
+    ctx.strokeStyle = State.colors.grid;
     ctx.lineWidth = 0.5;
     ctx.setLineDash([1, 2]); // dotted lines
     ctx.font = '12px ' + FONT_STACK;
-    ctx.fillStyle = '#6e717a';
+    ctx.fillStyle = State.colors.foreground;
     
     // Price grid lines: 15 labels, spaced to fit exactly 99px top offset and 135px bottom offset.
-    // Top-most price label is at screen Y = 104.5px center (canvas Y = 13.5px, top of text is screen Y = 99px).
-    // Bottom-most price label is at screen Y = 703.5px center (canvas Y = 612.5px, bottom of text is screen Y = 709px).
     const priceCount = 15;
     const yStart = 13.5;
     const yStep = 42.785;
@@ -330,7 +372,7 @@ function drawChart() {
         
         ctx.save();
         ctx.setLineDash([]); // solid text and ticks
-        ctx.strokeStyle = '#cbcbcb';
+        ctx.strokeStyle = State.colors.grid;
         ctx.lineWidth = 1;
         
         // Draw axis tick pointing rightwards
@@ -341,7 +383,8 @@ function drawChart() {
         
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.letterSpacing = '1.5px';
+        ctx.letterSpacing = '1.7px';
+        ctx.fillStyle = State.colors.foreground;
         ctx.fillText(gridPrice.toFixed(3), MARGIN_LEFT + chartWidth + 6, y, 55);
         ctx.restore();
     }
@@ -371,7 +414,7 @@ function drawChart() {
         
         ctx.save();
         ctx.setLineDash([]); // solid text and ticks
-        ctx.strokeStyle = '#cbcbcb';
+        ctx.strokeStyle = State.colors.grid;
         ctx.lineWidth = 1;
         
         // Draw axis tick pointing downwards (adding 4 to y)
@@ -383,14 +426,14 @@ function drawChart() {
         if (index < targetXPositions.length - 1) {
             ctx.textAlign = 'left';
             ctx.font = '11px ' + FONT_STACK;
-            ctx.fillStyle = '#5A5A5F';
+            ctx.fillStyle = State.colors.foreground;
             ctx.fillText(candle.timeLabel, x + 3, MARGIN_TOP + chartHeight + 14, 73);
         }
         ctx.restore();
     });
     ctx.restore();
     
-    // 2. Draw Candlesticks (TradingView Style: Green & Red)
+    // 2. Draw Candlesticks (Custom Colors: barUp, barDown, bull, bear)
     visibleCandles.forEach((candle, idx) => {
         const absIdx = startIndex + idx;
         const x = getX(absIdx);
@@ -401,10 +444,11 @@ function drawChart() {
         const yLow = getY(candle.low);
         
         const isBullish = candle.close >= candle.open;
-        const color = isBullish ? varColor('--tv-green', '#089981') : varColor('--tv-red', '#f23645');
+        const strokeColor = isBullish ? State.colors.barUp : State.colors.barDown;
+        const fillColor = isBullish ? State.colors.bull : State.colors.bear;
         
-        ctx.strokeStyle = color;
-        ctx.fillStyle = color;
+        ctx.strokeStyle = strokeColor;
+        ctx.fillStyle = fillColor;
         ctx.lineWidth = 1.0;
         
         // Draw wick
@@ -432,8 +476,7 @@ function drawChart() {
     State.positions.forEach(pos => {
         const y = getY(pos.openPrice);
         if (y >= MARGIN_TOP && y <= MARGIN_TOP + chartHeight) {
-            const isBuy = pos.type === 'BUY';
-            const color = isBuy ? varColor('--mt5-blue', '#0b5cd5') : varColor('--mt5-red', '#e53935');
+            const color = State.colors.stopLevels;
             
             ctx.save();
             ctx.strokeStyle = color;
@@ -452,18 +495,18 @@ function drawChart() {
         }
     });
     
-    // 4. Draw Current Price Line and Box
-    const currentPrice = State.currentBid;
-    const curY = getY(currentPrice);
+    // 4. Draw Current Price Lines (Bid and Ask) and Boxes
     
-    if (curY >= MARGIN_TOP && curY <= MARGIN_TOP + chartHeight) {
+    // Draw Ask Line (Ask is higher than Bid)
+    const askY = getY(State.currentAsk);
+    if (askY >= MARGIN_TOP && askY <= MARGIN_TOP + chartHeight) {
         ctx.save();
-        ctx.strokeStyle = '#00A86B';
+        ctx.strokeStyle = State.colors.askLine;
         ctx.setLineDash([2, 3]);
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(MARGIN_LEFT, curY);
-        ctx.lineTo(MARGIN_LEFT + chartWidth, curY);
+        ctx.moveTo(MARGIN_LEFT, askY);
+        ctx.lineTo(MARGIN_LEFT + chartWidth, askY);
         ctx.stroke();
         ctx.restore();
         
@@ -471,25 +514,58 @@ function drawChart() {
         const boxWidth = 62;
         const boxHeight = 14;
         const boxX = MARGIN_LEFT + chartWidth + 2;
-        const boxY = curY - boxHeight / 2;
+        const boxY = askY - boxHeight / 2;
         
-        // Draw price box: solid green background
-        ctx.fillStyle = '#00A86B';
+        // Draw ask price box: solid background
+        ctx.fillStyle = State.colors.askLine;
         ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
         
-        // Price text: same size (12px) as static price labels, color #ffffff for high contrast
+        // Price text
         ctx.fillStyle = '#ffffff';
         ctx.font = '400 12px ' + FONT_STACK;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.letterSpacing = '1.5px';
-        ctx.fillText(currentPrice.toFixed(3), boxX + boxWidth / 2, curY, 55);
+        ctx.letterSpacing = '1.7px';
+        ctx.fillText(State.currentAsk.toFixed(3), boxX + boxWidth / 2, askY, 55);
+        ctx.restore();
+    }
+
+    // Draw Bid Line
+    const bidY = getY(State.currentBid);
+    if (bidY >= MARGIN_TOP && bidY <= MARGIN_TOP + chartHeight) {
+        ctx.save();
+        ctx.strokeStyle = State.colors.bidLine;
+        ctx.setLineDash([2, 3]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(MARGIN_LEFT, bidY);
+        ctx.lineTo(MARGIN_LEFT + chartWidth, bidY);
+        ctx.stroke();
+        ctx.restore();
+        
+        ctx.save();
+        const boxWidth = 62;
+        const boxHeight = 14;
+        const boxX = MARGIN_LEFT + chartWidth + 2;
+        const boxY = bidY - boxHeight / 2;
+        
+        // Draw bid price box: solid background
+        ctx.fillStyle = State.colors.bidLine;
+        ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+        
+        // Price text
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '400 12px ' + FONT_STACK;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.letterSpacing = '1.7px';
+        ctx.fillText(State.currentBid.toFixed(3), boxX + boxWidth / 2, bidY, 55);
         ctx.restore();
     }
     
     // 5. Draw Axis Separators & Three Dots
     ctx.save();
-    ctx.strokeStyle = '#cbcbcb';
+    ctx.strokeStyle = State.colors.grid;
     ctx.lineWidth = 1;
     ctx.setLineDash([]); // solid border separator lines
     
@@ -511,10 +587,10 @@ function drawChart() {
     ctx.lineTo(MARGIN_LEFT + chartWidth, MARGIN_TOP + chartHeight);
     ctx.stroke();
     
-    // Draw three circles grouping together to form '...' with exactly 18px width, 4px height, 113px from screen bottom, and first dot starting exactly 25px to the right of the vertical separator line (x=322px)
+    // Draw three circles grouping together to form '...'
     const dotY = 640;
-    const dotX = MARGIN_LEFT + chartWidth + 34; // 322 + 34 = 356px (left edge of first dot starts at 356 - 7 - 2 = 347px, exactly 25px from vertical line)
-    ctx.fillStyle = '#40424b';
+    const dotX = MARGIN_LEFT + chartWidth + 34;
+    ctx.fillStyle = State.colors.foreground;
     
     // Draw Dot 1
     ctx.beginPath();
@@ -581,6 +657,60 @@ function drawChart() {
         crosshairValX.classList.add('hidden');
         crosshairValY.classList.add('hidden');
     }
+    
+    // 7. Draw Replay Cut Selection Line and Floating Banner
+    if (State.isReplaySelectMode) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(229, 57, 53, 0.9)'; // Red banner background
+        
+        const drawRoundedRect = (x, y, w, h, r) => {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+            ctx.fill();
+        };
+        
+        const bannerW = 200;
+        const bannerH = 26;
+        const bannerX = (chartWidth - bannerW) / 2;
+        const bannerY = 8;
+        
+        drawRoundedRect(bannerX, bannerY, bannerW, bannerH, 6);
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 11px ' + FONT_STACK;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('✂ انقر على شمعة لبدء الإعادة', bannerX + bannerW / 2, bannerY + bannerH / 2);
+        ctx.restore();
+        
+        if (State.replaySelectIndex !== -1) {
+            const cutX = getX(State.replaySelectIndex);
+            ctx.save();
+            ctx.strokeStyle = '#e53935'; // red
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 4]);
+            
+            ctx.beginPath();
+            ctx.moveTo(cutX, 0);
+            ctx.lineTo(cutX, MARGIN_TOP + chartHeight);
+            ctx.stroke();
+            
+            ctx.fillStyle = '#e53935';
+            ctx.font = 'bold 10px ' + FONT_STACK;
+            ctx.textAlign = 'center';
+            ctx.fillText('✂ بدء الإعادة', cutX, 42);
+            ctx.restore();
+        }
+    }
 }
 
 // Helper to get computing color values
@@ -603,27 +733,77 @@ let isPriceScaling = false;
 let dragStartX = 0;
 let dragStartY = 0;
 let initialPanOffset = 0;
-let initialPanOffsetY = 0;
 let initialZoom = 12;
 let touchStartDist = 0;
 
-function handlePointerDown(e) {
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX || e.touches[0].clientX) - rect.left;
-    const y = (e.clientY || e.touches[0].clientY) - rect.top;
+let initialPriceMin = 0;
+let initialPriceMax = 0;
+let anchorPrice = 0;
+
+function getCandleIndexFromX(x) {
+    const activeCandles = getActiveCandles();
+    const totalCount = activeCandles.length;
+    if (totalCount === 0) return -1;
     
-    // Right axis pricing scale drag check
+    const RIGHT_PADDING = 25;
+    const candleSpacing = State.zoom;
     const chartWidth = State.width - MARGIN_RIGHT - MARGIN_LEFT;
-    if (x > MARGIN_LEFT + chartWidth) {
-        isPriceScaling = true;
-        State.isAutoYScale = false;
-        dragStartY = y;
-        initialPanOffsetY = State.panOffsetY;
+    
+    let endIndex = totalCount - 1 - State.panOffset;
+    if (endIndex < 0) endIndex = 0;
+    
+    const offsetFromEnd = (MARGIN_LEFT + chartWidth - RIGHT_PADDING - (candleSpacing / 2) - x) / candleSpacing;
+    const candleIndex = endIndex - Math.round(offsetFromEnd);
+    
+    const maxVisible = Math.ceil(chartWidth / candleSpacing);
+    let startIndex = endIndex - maxVisible;
+    if (startIndex < 0) startIndex = 0;
+    
+    return Math.max(startIndex, Math.min(endIndex, candleIndex));
+}
+
+function getPriceFromYGlobal(y) {
+    const chartHeight = State.height - MARGIN_BOTTOM - MARGIN_TOP;
+    return State.manualYMin + ((MARGIN_TOP + chartHeight - y) / chartHeight) * (State.manualYMax - State.manualYMin);
+}
+
+function handlePointerDown(e) {
+    // Prevent default browser gestures (zoom/pan)
+    if (e.cancelable) {
+        e.preventDefault();
+    }
+    
+    const rect = canvas.getBoundingClientRect();
+    const isTouch = e.touches && e.touches.length > 0;
+    const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+    const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+    
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    
+    // Replay mode start candle selection click
+    if (State.isReplaySelectMode) {
+        const clickedIdx = getCandleIndexFromX(x);
+        if (clickedIdx !== -1) {
+            State.replayIndex = clickedIdx;
+            State.isReplaySelectMode = false;
+            State.replayMode = true;
+            replayWidget.classList.remove('hidden');
+            syncReplayCandleData();
+            pauseReplay();
+            drawChart();
+        }
         return;
     }
     
-    // Pinch to zoom checks
+    // Check if right axis is touched
+    const chartWidth = State.width - MARGIN_RIGHT - MARGIN_LEFT;
+    const isRightAxis = x > MARGIN_LEFT + chartWidth;
+    
+    // Pinch to zoom check (2 fingers)
     if (e.touches && e.touches.length === 2) {
+        isDragging = false;
+        isPriceScaling = false;
         const t1 = e.touches[0];
         const t2 = e.touches[1];
         touchStartDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
@@ -631,35 +811,36 @@ function handlePointerDown(e) {
         return;
     }
     
-    isDragging = true;
-    dragStartX = x;
-    dragStartY = y;
-    initialPanOffset = State.panOffset;
-    initialPanOffsetY = State.panOffsetY;
+    if (isRightAxis) {
+        isPriceScaling = true;
+        isDragging = false;
+        State.isAutoYScale = false;
+        dragStartY = y;
+        initialPriceMin = State.manualYMin;
+        initialPriceMax = State.manualYMax;
+        
+        // Save price anchor corresponding to start Y
+        anchorPrice = getPriceFromYGlobal(y);
+    } else {
+        isDragging = true;
+        isPriceScaling = false;
+        dragStartX = x;
+        dragStartY = y;
+        initialPanOffset = State.panOffset;
+        initialPriceMin = State.manualYMin;
+        initialPriceMax = State.manualYMax;
+    }
 }
 
 function handlePointerMove(e) {
+    if (e.cancelable) {
+        e.preventDefault();
+    }
+    
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const isTouch = e.touches && e.touches.length > 0;
     
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-    
-    if (State.isCrosshairActive) {
-        State.crosshairX = Math.max(MARGIN_LEFT, Math.min(x, State.width - MARGIN_RIGHT));
-        State.crosshairY = Math.max(MARGIN_TOP, Math.min(y, State.height - MARGIN_BOTTOM));
-        drawChart();
-        return;
-    }
-    
-    if (isPriceScaling) {
-        const dy = y - dragStartY;
-        State.panOffsetY = initialPanOffsetY + dy;
-        drawChart();
-        return;
-    }
-    
+    // Handle multi-touch pinch to zoom (2 fingers)
     if (e.touches && e.touches.length === 2) {
         const t1 = e.touches[0];
         const t2 = e.touches[1];
@@ -671,15 +852,62 @@ function handlePointerMove(e) {
         return;
     }
     
+    const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+    const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+    
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    
+    // Replay mode hover selection line
+    if (State.isReplaySelectMode) {
+        State.replaySelectIndex = getCandleIndexFromX(x);
+        drawChart();
+        return;
+    }
+    
+    if (State.isCrosshairActive) {
+        State.crosshairX = Math.max(MARGIN_LEFT, Math.min(x, State.width - MARGIN_RIGHT));
+        State.crosshairY = Math.max(MARGIN_TOP, Math.min(y, State.height - MARGIN_BOTTOM));
+        drawChart();
+        return;
+    }
+    
+    const chartHeight = State.height - MARGIN_BOTTOM - MARGIN_TOP;
+    
+    if (isPriceScaling) {
+        const dy = y - dragStartY;
+        // Exponential scale factor relative to the touch drag displacement
+        const factor = Math.pow(1.005, dy);
+        
+        State.manualYMin = anchorPrice - (anchorPrice - initialPriceMin) * factor;
+        State.manualYMax = anchorPrice + (initialPriceMax - anchorPrice) * factor;
+        drawChart();
+        return;
+    }
+    
     if (isDragging) {
         const dx = x - dragStartX;
         const dy = y - dragStartY;
         
+        // Pan horizontally
         const candlesDiff = Math.round(dx / State.zoom);
         State.panOffset = Math.max(0, initialPanOffset + candlesDiff);
         
+        // Pan vertically (switch to manual Y scale if dragged vertically)
+        if (Math.abs(dy) > 5 && State.isAutoYScale) {
+            State.isAutoYScale = false;
+            initialPriceMin = State.manualYMin;
+            initialPriceMax = State.manualYMax;
+            dragStartY = y; // Reset start coordinates to avoid sudden jump
+        }
+        
         if (!State.isAutoYScale) {
-            State.panOffsetY = initialPanOffsetY + dy;
+            const priceRange = initialPriceMax - initialPriceMin;
+            const pricePerPixel = priceRange / chartHeight;
+            const priceShift = -dy * pricePerPixel;
+            
+            State.manualYMin = initialPriceMin + priceShift;
+            State.manualYMax = initialPriceMax + priceShift;
         }
         
         drawChart();
@@ -693,15 +921,10 @@ function handlePointerUp() {
 }
 
 function handleDoubleClick(e) {
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const chartWidth = State.width - MARGIN_RIGHT - MARGIN_LEFT;
-    
-    if (x > MARGIN_LEFT + chartWidth) {
-        State.isAutoYScale = true;
-        State.panOffsetY = 0;
-        drawChart();
-    }
+    // Reset to Auto Y scaling on double click/tap anywhere on chart
+    State.isAutoYScale = true;
+    State.panOffsetY = 0;
+    drawChart();
 }
 
 function handleWheel(e) {
@@ -711,16 +934,16 @@ function handleWheel(e) {
     drawChart();
 }
 
-// Bind Events
+// Bind Events with { passive: false } for touches to block default browser zooming/scrolling gestures on canvas
 canvas.addEventListener('mousedown', handlePointerDown);
 canvas.addEventListener('mousemove', handlePointerMove);
 window.addEventListener('mouseup', handlePointerUp);
 canvas.addEventListener('dblclick', handleDoubleClick);
 canvas.addEventListener('wheel', handleWheel, { passive: false });
 
-canvas.addEventListener('touchstart', handlePointerDown, { passive: true });
-canvas.addEventListener('touchmove', handlePointerMove, { passive: true });
-window.addEventListener('touchend', handlePointerUp);
+canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
+canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
+window.addEventListener('touchend', handlePointerUp, { passive: false });
 
 // --- TICK ENGINE & PRICE SIMULATION ---
 function triggerPriceTick() {
@@ -808,14 +1031,27 @@ setInterval(triggerPriceTick, 1500);
 
 // --- REPLAY ENGINE ---
 function toggleReplayMode() {
-    State.replayMode = !State.replayMode;
-    if (State.replayMode) {
-        replayWidget.classList.remove('hidden');
-        State.replayIndex = Math.min(60, State.candles.length - 50);
-        pauseReplay();
-        syncReplayCandleData();
-    } else {
+    if (State.replayMode || State.isReplaySelectMode) {
+        // Exit replay mode & select mode
+        State.replayMode = false;
+        State.isReplaySelectMode = false;
+        State.replaySelectIndex = -1;
         replayWidget.classList.add('hidden');
+        pauseReplay();
+        
+        // Reset prices to match the latest live data
+        if (State.candles.length > 0) {
+            const latest = State.candles[State.candles.length - 1];
+            State.currentBid = latest.close;
+            State.currentAsk = parseFloat((State.currentBid + State.spread).toFixed(3));
+            updateTradingPanelUI();
+            updatePositionsProfit();
+        }
+    } else {
+        // Enter select mode (cutter mode)
+        State.isReplaySelectMode = true;
+        State.replaySelectIndex = -1;
+        replayWidget.classList.add('hidden'); // Keep panel hidden during select mode
         pauseReplay();
     }
     drawChart();
@@ -897,15 +1133,45 @@ function stepReplayBackward() {
     }
 }
 
-// Replay UI trigger
+// Replay UI triggers
 replayPanelToggle.addEventListener('click', () => {
-    replayWidget.classList.toggle('hidden');
-    if (!replayWidget.classList.contains('hidden') && !State.replayMode) {
-        toggleReplayMode();
-    } else if (replayWidget.classList.contains('hidden') && State.replayMode) {
+    if (State.replayMode) {
+        // Toggle visibility (minimize / restore) of the controls widget
+        replayWidget.classList.toggle('hidden');
+    } else {
         toggleReplayMode();
     }
 });
+
+const replayMinimizeBtn = document.getElementById('replay-minimize');
+if (replayMinimizeBtn) {
+    replayMinimizeBtn.addEventListener('click', () => {
+        // Just hide the widget panel, keeping replay mode active!
+        replayWidget.classList.add('hidden');
+    });
+}
+
+const replayCloseBtn = document.getElementById('replay-close');
+if (replayCloseBtn) {
+    replayCloseBtn.addEventListener('click', () => {
+        // Exit replay mode completely
+        State.replayMode = false;
+        State.isReplaySelectMode = false;
+        State.replaySelectIndex = -1;
+        replayWidget.classList.add('hidden');
+        pauseReplay();
+        
+        // Reset prices to match the latest live data
+        if (State.candles.length > 0) {
+            const latest = State.candles[State.candles.length - 1];
+            State.currentBid = latest.close;
+            State.currentAsk = parseFloat((State.currentBid + State.spread).toFixed(3));
+            updateTradingPanelUI();
+            updatePositionsProfit();
+        }
+        drawChart();
+    });
+}
 
 replayPlayBtn.addEventListener('click', playReplay);
 replayPauseBtn.addEventListener('click', pauseReplay);
@@ -1256,10 +1522,182 @@ resetBalanceBtn.addEventListener('click', () => {
 });
 
 resetDataBtn.addEventListener('click', () => {
+    localStorage.removeItem('mt5_imported_candles');
+    localStorage.removeItem('mt5_imported_filename');
+    localStorage.removeItem('mt5_chart_colors');
+    
+    // Restore default colors
+    State.colors = {
+        foreground: '#6e717a',
+        grid: '#e2e2e4',
+        barUp: '#2962ff',
+        barDown: '#ff1744',
+        bull: '#2962ff',
+        bear: '#ff1744',
+        chartLine: '#00e676',
+        volumes: '#00b0ff',
+        bidLine: '#00A86B',
+        askLine: '#ff9f0a',
+        stopLevels: '#d50000'
+    };
+    
+    // Update color inputs
+    Object.keys(colorInputs).forEach(key => {
+        const input = colorInputs[key];
+        if (input) input.value = State.colors[key];
+    });
+    
     generateMockData();
     drawChart();
-    alert('تم استعادة البيانات التاريخية الافتراضية.');
+    alert('تم استعادة البيانات التاريخية الافتراضية وحذف الملف المحفوظ والألوان المخصصة.');
 });
+
+// Bind Color inputs change events
+Object.keys(colorInputs).forEach(key => {
+    const input = colorInputs[key];
+    if (input) {
+        input.value = State.colors[key];
+        input.addEventListener('input', (e) => {
+            State.colors[key] = e.target.value;
+            localStorage.setItem('mt5_chart_colors', JSON.stringify(State.colors));
+            drawChart();
+        });
+    }
+});
+
+// Reusable CSV parsing function
+function parseAndLoadCSVData(text) {
+    const lines = text.split('\n');
+    let newCandles = [];
+    
+    // Check if file is tab-separated (tick data) or comma-separated
+    const firstLine = lines[0] || "";
+    const isTabSeparated = firstLine.includes('\t');
+    
+    if (isTabSeparated && (firstLine.includes('BID') || firstLine.includes('ASK'))) {
+        // High-performance tick data aggregator
+        const map = new Map();
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line) continue;
+            
+            const cols = line.split('\t');
+            if (cols.length < 3) continue;
+            
+            const dateStr = cols[0].trim(); // e.g. "2026.06.24"
+            const timeStr = cols[1].trim(); // e.g. "00:00:00.070"
+            const bidVal = parseFloat(cols[2]);
+            if (isNaN(bidVal)) continue;
+            
+            // Extract hour and minute
+            const hh = timeStr.substring(0, 2);
+            const mm = timeStr.substring(3, 5);
+            
+            const m = parseInt(mm);
+            if (isNaN(m)) continue;
+            
+            const roundedM = Math.floor(m / State.timeframeMinutes) * State.timeframeMinutes;
+            const roundedMStr = String(roundedM).padStart(2, '0');
+            
+            const key = `${dateStr} ${hh}:${roundedMStr}:00`;
+            
+            let candle = map.get(key);
+            if (!candle) {
+                candle = {
+                    open: bidVal,
+                    high: bidVal,
+                    low: bidVal,
+                    close: bidVal,
+                    dateStr: dateStr.replace(/\./g, '/'),
+                    timeStr: `${hh}:${roundedMStr}:00`
+                };
+                map.set(key, candle);
+            } else {
+                if (bidVal > candle.high) candle.high = bidVal;
+                if (bidVal < candle.low) candle.low = bidVal;
+                candle.close = bidVal;
+            }
+        }
+        
+        newCandles = Array.from(map.values()).map(c => {
+            const dt = new Date(`${c.dateStr} ${c.timeStr}`);
+            return {
+                time: dt,
+                timeLabel: formatTimeLabel(dt),
+                open: c.open,
+                high: c.high,
+                low: c.low,
+                close: c.close
+            };
+        });
+    } else {
+        // Standard comma-separated Direct OHLC parser
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            const cols = line.split(',');
+            if (cols.length < 5) continue;
+            
+            let timeVal, open, high, low, close;
+            
+            if (cols.length >= 6) {
+                const dateTimeStr = cols[0] + ' ' + cols[1];
+                timeVal = new Date(dateTimeStr);
+                open = parseFloat(cols[2]);
+                high = parseFloat(cols[3]);
+                low = parseFloat(cols[4]);
+                close = parseFloat(cols[5]);
+            } else {
+                timeVal = new Date(cols[0]);
+                open = parseFloat(cols[1]);
+                high = parseFloat(cols[2]);
+                low = parseFloat(cols[3]);
+                close = parseFloat(cols[4]);
+            }
+            
+            if (isNaN(timeVal.getTime()) || isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close)) {
+                continue; 
+            }
+            
+            newCandles.push({
+                time: timeVal,
+                timeLabel: formatTimeLabel(timeVal),
+                open,
+                high,
+                low,
+                close
+            });
+        }
+    }
+    
+    if (newCandles.length > 0) {
+        newCandles.sort((a, b) => a.time.getTime() - b.time.getTime());
+        State.candles = newCandles;
+        State.replayIndex = Math.min(50, newCandles.length - 1);
+        
+        const latest = newCandles[newCandles.length - 1];
+        State.currentBid = latest.close;
+        State.currentAsk = latest.close + State.spread;
+        
+        // Save to localStorage for persistence across page reloads
+        try {
+            const simplifiedCandles = newCandles.map(c => ({
+                t: c.time.getTime(),
+                o: c.open,
+                h: c.high,
+                l: c.low,
+                c: c.close
+            }));
+            localStorage.setItem('mt5_imported_candles', JSON.stringify(simplifiedCandles));
+        } catch (e) {
+            console.error('Failed to save candles to localStorage:', e);
+        }
+        
+        return true;
+    }
+    return false;
+}
 
 // CSV file upload handler
 csvFileInput.addEventListener('change', (e) => {
@@ -1270,59 +1708,11 @@ csvFileInput.addEventListener('change', (e) => {
     reader.onload = function(event) {
         try {
             const text = event.target.result;
-            const lines = text.split('\n');
-            const newCandles = [];
-            
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (!line) continue;
-                
-                const cols = line.split(',');
-                if (cols.length < 5) continue;
-                
-                let timeVal, open, high, low, close;
-                
-                if (cols.length >= 6) {
-                    const dateTimeStr = cols[0] + ' ' + cols[1];
-                    timeVal = new Date(dateTimeStr);
-                    open = parseFloat(cols[2]);
-                    high = parseFloat(cols[3]);
-                    low = parseFloat(cols[4]);
-                    close = parseFloat(cols[5]);
-                } else {
-                    timeVal = new Date(cols[0]);
-                    open = parseFloat(cols[1]);
-                    high = parseFloat(cols[2]);
-                    low = parseFloat(cols[3]);
-                    close = parseFloat(cols[4]);
-                }
-                
-                if (isNaN(timeVal.getTime()) || isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close)) {
-                    continue; 
-                }
-                
-                newCandles.push({
-                    time: timeVal,
-                    timeLabel: formatTimeLabel(timeVal),
-                    open,
-                    high,
-                    low,
-                    close
-                });
-            }
-            
-            if (newCandles.length > 0) {
-                newCandles.sort((a, b) => a.time.getTime() - b.time.getTime());
-                State.candles = newCandles;
-                State.replayIndex = Math.min(50, newCandles.length - 1);
-                
-                const latest = newCandles[newCandles.length - 1];
-                State.currentBid = latest.close;
-                State.currentAsk = latest.close + State.spread;
+            const success = parseAndLoadCSVData(text);
+            if (success) {
                 updateTradingPanelUI();
-                
                 drawChart();
-                alert(`تم استيراد ${newCandles.length} شمعة بنجاح!`);
+                alert(`تم استيراد ${State.candles.length} شمعة بنجاح!`);
                 switchPage('page-chart');
             } else {
                 alert('فشل في العثور على شموع صالحة بالملف. يرجى التحقق من صياغة البيانات.');
@@ -1336,7 +1726,63 @@ csvFileInput.addEventListener('change', (e) => {
 
 // --- INITIALIZATION ---
 window.addEventListener('load', () => {
-    generateMockData();
+    // 1. Try to load from localStorage first
+    const saved = localStorage.getItem('mt5_imported_candles');
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            const loadedCandles = parsed.map(item => {
+                const dt = new Date(item.t);
+                return {
+                    time: dt,
+                    timeLabel: formatTimeLabel(dt),
+                    open: item.o,
+                    high: item.h,
+                    low: item.l,
+                    close: item.c
+                };
+            });
+            
+            if (loadedCandles.length > 0) {
+                console.log(`Loaded ${loadedCandles.length} candles from localStorage cache.`);
+                State.candles = loadedCandles;
+                State.replayIndex = Math.min(50, loadedCandles.length - 1);
+                const latest = loadedCandles[loadedCandles.length - 1];
+                State.currentBid = latest.close;
+                State.currentAsk = latest.close + State.spread;
+                finalizeInit();
+                return;
+            }
+        } catch (e) {
+            console.error('Failed to parse cached localStorage candles:', e);
+        }
+    }
+
+    // 2. Fallback: Try to fetch XAUUSDr.csv on startup
+    fetch('XAUUSDr.csv')
+        .then(response => {
+            if (!response.ok) throw new Error('File not found');
+            return response.text();
+        })
+        .then(text => {
+            console.log('Found XAUUSDr.csv, parsing and loading...');
+            const success = parseAndLoadCSVData(text);
+            if (success) {
+                console.log('Successfully preloaded CSV data!');
+            } else {
+                console.warn('CSV parsing returned empty data, falling back to mock data...');
+                generateMockData();
+            }
+            finalizeInit();
+        })
+        .catch(err => {
+            console.log('Could not preload XAUUSDr.csv (likely CORS or file missing), generating mock data:', err.message);
+            generateMockData();
+            finalizeInit();
+        });
+});
+
+function finalizeInit() {
     resizeCanvas();
     updateTradingPanelUI();
     updatePositionsProfit();
@@ -1347,6 +1793,6 @@ window.addEventListener('load', () => {
             .then(() => console.log('PWA Service Worker Registered'))
             .catch(err => console.log('Service Worker Registration Failed:', err));
     }
-});
+}
 
 window.addEventListener('resize', resizeCanvas);

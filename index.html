@@ -70,26 +70,28 @@
                 <!-- Quotes Page (Hidden by default) -->
                 <div class="page hidden" id="page-quotes">
                     <div class="page-header">الأسعار (Quotes)</div>
-                    <div class="quotes-list">
-                        <div class="quote-item">
-                            <div class="quote-symbol">XAUUSD</div>
-                            <div class="quote-prices">
-                                <div class="quote-price sell" id="quote-sell-val">3982.01</div>
-                                <div class="quote-price buy" id="quote-buy-val">3982.06</div>
+                    <div class="page-scrollable">
+                        <div class="quotes-list">
+                            <div class="quote-item">
+                                <div class="quote-symbol">XAUUSD</div>
+                                <div class="quote-prices">
+                                    <div class="quote-price sell" id="quote-sell-val">3982.01</div>
+                                    <div class="quote-price buy" id="quote-buy-val">3982.06</div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="quote-item">
-                            <div class="quote-symbol">EURUSD</div>
-                            <div class="quote-prices">
-                                <div class="quote-price sell">1.0842</div>
-                                <div class="quote-price buy">1.0843</div>
+                            <div class="quote-item">
+                                <div class="quote-symbol">EURUSD</div>
+                                <div class="quote-prices">
+                                    <div class="quote-price sell">1.0842</div>
+                                    <div class="quote-price buy">1.0843</div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="quote-item">
-                            <div class="quote-symbol">GBPUSD</div>
-                            <div class="quote-prices">
-                                <div class="quote-price sell">1.2631</div>
-                                <div class="quote-price buy">1.2633</div>
+                            <div class="quote-item">
+                                <div class="quote-symbol">GBPUSD</div>
+                                <div class="quote-prices">
+                                    <div class="quote-price sell">1.2631</div>
+                                    <div class="quote-price buy">1.2633</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -98,70 +100,126 @@
                 <!-- Trade Page (Hidden by default) -->
                 <div class="page hidden" id="page-trade">
                     <div class="page-header">تداول (Trade)</div>
-                    <div class="balance-card">
-                        <div class="balance-row">
-                            <span>الرصيد:</span>
-                            <span id="balance-val">$10,000.00</span>
+                    <div class="page-scrollable">
+                        <div class="balance-card">
+                            <div class="balance-row">
+                                <span>الرصيد:</span>
+                                <span id="balance-val">$10,000.00</span>
+                            </div>
+                            <div class="balance-row">
+                                <span>حقوق الملكية (Equity):</span>
+                                <span id="equity-val">$10,000.00</span>
+                            </div>
+                            <div class="balance-row">
+                                <span>الهامش المتاح:</span>
+                                <span id="margin-free-val">$10,000.00</span>
+                            </div>
                         </div>
-                        <div class="balance-row">
-                            <span>حقوق الملكية (Equity):</span>
-                            <span id="equity-val">$10,000.00</span>
+                        <div class="positions-list" id="positions-list-container">
+                            <div class="no-positions">لا توجد صفقات مفتوحة حالياً.</div>
                         </div>
-                        <div class="balance-row">
-                            <span>الهامش المتاح:</span>
-                            <span id="margin-free-val">$10,000.00</span>
-                        </div>
-                    </div>
-                    <div class="positions-list" id="positions-list-container">
-                        <div class="no-positions">لا توجد صفقات مفتوحة حالياً.</div>
                     </div>
                 </div>
 
                 <!-- History Page (Hidden by default) -->
                 <div class="page hidden" id="page-history">
                     <div class="page-header">التاريخ (History)</div>
-                    <div class="history-list" id="history-list-container">
-                        <div class="no-history">لا توجد صفقات مغلقة في السجل.</div>
+                    <div class="page-scrollable">
+                        <div class="history-list" id="history-list-container">
+                            <div class="no-history">لا توجد صفقات مغلقة في السجل.</div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Settings Page (Hidden by default) -->
                 <div class="page hidden" id="page-settings">
                     <div class="page-header">الإعدادات (Settings)</div>
-                    <div class="settings-group">
-                        <div class="settings-title">حساب التداول التجريبي</div>
-                        <div class="settings-item">
-                            <span>رأس المال المبدئي</span>
-                            <input type="number" id="initial-balance-input" value="10000" style="width: 100px; text-align: left;">
+                    <div class="page-scrollable">
+                        <div class="settings-group">
+                            <div class="settings-title">حساب التداول التجريبي</div>
+                            <div class="settings-item">
+                                <span>رأس المال المبدئي</span>
+                                <input type="number" id="initial-balance-input" value="10000" style="width: 100px; text-align: left;">
+                            </div>
+                            <button class="settings-btn" id="reset-balance-btn">إعادة تعيين الحساب</button>
                         </div>
-                        <button class="settings-btn" id="reset-balance-btn">إعادة تعيين الحساب</button>
-                    </div>
 
-                    <div class="settings-group">
-                        <div class="settings-title">استيراد البيانات التاريخية</div>
-                        <div class="settings-item">
-                            <span>ملف CSV للشموع</span>
-                            <label class="csv-upload-label">
-                                اختر ملف CSV
-                                <input type="file" id="csv-file-input" accept=".csv" class="hidden">
-                            </label>
+                        <div class="settings-group">
+                            <div class="settings-title">استيراد البيانات التاريخية</div>
+                            <div class="settings-item">
+                                <span>ملف CSV للشموع</span>
+                                <label class="csv-upload-label">
+                                    اختر ملف CSV
+                                    <input type="file" id="csv-file-input" accept=".csv" class="hidden">
+                                </label>
+                            </div>
+                            <div style="font-size: 10px; color: #888; margin-top: 5px; padding: 0 15px;">
+                                تنسيق CSV الموصى به: Date, Time, Open, High, Low, Close أو Time, Open, High, Low, Close
+                            </div>
+                            <button class="settings-btn" id="reset-data-btn" style="background-color: #777; margin-top: 10px;">إعادة تعيين البيانات الافتراضية</button>
                         </div>
-                        <div style="font-size: 10px; color: #888; margin-top: 5px; padding: 0 15px;">
-                            تنسيق CSV الموصى به: Date, Time, Open, High, Low, Close أو Time, Open, High, Low, Close
-                        </div>
-                        <button class="settings-btn" id="reset-data-btn" style="background-color: #777; margin-top: 10px;">إعادة تعيين البيانات الافتراضية</button>
-                    </div>
 
-                    <div class="settings-group">
-                        <div class="settings-title">تثبيت التطبيق على الجوال</div>
-                        <div style="padding: 15px; font-size: 13px; color: #333; line-height: 1.6; text-align: right; font-family: Arial, sans-serif;">
-                            <p style="font-weight: bold; color: #000; margin-bottom: 8px;">لتثبيت الموقع وتصفحه كتطبيق مستقل كامل الشاشة:</p>
-                            <ol style="margin-right: 20px; margin-top: 5px; padding-right: 10px;">
-                                <li>اضغط على زر <strong>مشاركة (Share)</strong> <span style="font-size: 16px; color: #2962ff;">⎙</span> في شريط Safari السفلي.</li>
-                                <li>اختر <strong>إضافة إلى الشاشة الرئيسية (Add to Home Screen)</strong> من الخيارات.</li>
-                                <li>انقر فوق <strong>إضافة (Add)</strong> لتثبيت التطبيق.</li>
-                            </ol>
-                            <p style="margin-top: 10px; font-size: 11px; color: #8e8e93;">* عند فتح التطبيق من شاشتك الرئيسية، سيعمل بدون حواف المتصفح وبنفس مقاس الهاتف.</p>
+                        <div class="settings-group">
+                            <div class="settings-title">الألوان (Colors)</div>
+                            <div class="settings-color-container">
+                                <div class="settings-color-item">
+                                    <span>أمام</span>
+                                    <input type="color" id="color-foreground" value="#6e717a">
+                                </div>
+                                <div class="settings-color-item">
+                                    <span>شبكة</span>
+                                    <input type="color" id="color-grid" value="#e2e2e4">
+                                </div>
+                                <div class="settings-color-item">
+                                    <span>شريط صاعد</span>
+                                    <input type="color" id="color-bar-up" value="#2962ff">
+                                </div>
+                                <div class="settings-color-item">
+                                    <span>شريط هابط</span>
+                                    <input type="color" id="color-bar-down" value="#ff1744">
+                                </div>
+                                <div class="settings-color-item">
+                                    <span>شمعة صاعدة</span>
+                                    <input type="color" id="color-bull" value="#2962ff">
+                                </div>
+                                <div class="settings-color-item">
+                                    <span>شمعة هابطة</span>
+                                    <input type="color" id="color-bear" value="#ff1744">
+                                </div>
+                                <div class="settings-color-item">
+                                    <span>خط الرسم البياني</span>
+                                    <input type="color" id="color-chart-line" value="#00e676">
+                                </div>
+                                <div class="settings-color-item">
+                                    <span>الأحجام</span>
+                                    <input type="color" id="color-volumes" value="#00b0ff">
+                                </div>
+                                <div class="settings-color-item">
+                                    <span>سعر خط العرض</span>
+                                    <input type="color" id="color-bid-line" value="#00A86B">
+                                </div>
+                                <div class="settings-color-item">
+                                    <span>خط سعر الطلب</span>
+                                    <input type="color" id="color-ask-line" value="#ff9f0a">
+                                </div>
+                                <div class="settings-color-item">
+                                    <span>مستويات توقف</span>
+                                    <input type="color" id="color-stop-levels" value="#d50000">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <div class="settings-title">تثبيت التطبيق على الجوال</div>
+                            <div style="padding: 15px; font-size: 13px; color: #333; line-height: 1.6; text-align: right; font-family: Arial, sans-serif;">
+                                <p style="font-weight: bold; color: #000; margin-bottom: 8px;">لتثبيت الموقع وتصفحه كتطبيق مستقل كامل الشاشة:</p>
+                                <ol style="margin-right: 20px; margin-top: 5px; padding-right: 10px;">
+                                    <li>اضغط على زر <strong>مشاركة (Share)</strong> <span style="font-size: 16px; color: #2962ff;">⎙</span> في شريط Safari السفلي.</li>
+                                    <li>اختر <strong>إضافة إلى الشاشة الرئيسية (Add to Home Screen)</strong> من الخيارات.</li>
+                                    <li>انقر فوق <strong>إضافة (Add)</strong> لتثبيت التطبيق.</li>
+                                </ol>
+                                <p style="margin-top: 10px; font-size: 11px; color: #8e8e93;">* عند فتح التطبيق من شاشتك الرئيسية، سيعمل بدون حواف المتصفح وبنفس مقاس الهاتف.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -194,6 +252,8 @@
 
             <!-- Replay Control Panel (الريبلي مود) -->
             <div class="replay-controls-panel hidden" id="replay-widget">
+                <button class="replay-close-btn" id="replay-close" title="إنهاء وضع الإعادة">×</button>
+                <button class="replay-minimize-btn" id="replay-minimize" title="إخفاء لوحة التحكم">▼</button>
                 <div class="replay-title">وضع إعادة تشغيل البيانات (Replay Mode)</div>
                 <div class="replay-row">
                     <button class="replay-btn" id="replay-prev" title="الشمعة السابقة">⏮</button>
