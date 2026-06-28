@@ -494,7 +494,7 @@ function drawChartFrame() {
         ctx.setLineDash([5, 5]); // Dash pattern: 5px 5px
         ctx.lineWidth = 1.0;      // Stroke width: 1px
         
-        const boxX = MARGIN_LEFT + chartWidth + 1;
+        const boxX = MARGIN_LEFT + chartWidth + 2;
         
         // 1. Draw Dashed Line (extends from start of chart to start of price box)
         ctx.beginPath();
@@ -507,7 +507,7 @@ function drawChartFrame() {
         ctx.save();
         ctx.globalAlpha = pos.opacity;
         ctx.fillStyle = textColor;
-        ctx.font = '400 10px "Helvetica Neue", Helvetica, Arial, sans-serif';
+        ctx.font = '400 12px "Helvetica Neue", Helvetica, Arial, sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'bottom';
         ctx.letterSpacing = 'normal'; // Standard spacing
@@ -521,12 +521,11 @@ function drawChartFrame() {
         ctx.save();
         ctx.globalAlpha = pos.opacity;
         
-        ctx.font = '400 10px "Helvetica Neue", Helvetica, Arial, sans-serif';
+        ctx.font = '400 12px "Helvetica Neue", Helvetica, Arial, sans-serif';
         const priceText = pos.openPrice.toFixed(3);
-        const textWidth = ctx.measureText(priceText).width;
         
-        const boxWidth = textWidth + 12; // 6px left, 6px right padding
-        const boxHeight = 22; // Height: 22px
+        const boxWidth = 58; // Width: 58px
+        const boxHeight = 14; // Height: 14px
         const boxY = y - boxHeight / 2; // Center vertically
         
         // Draw background
@@ -536,13 +535,13 @@ function drawChartFrame() {
         // Draw border: 1px Solid
         ctx.strokeStyle = textColor;
         ctx.lineWidth = 1.0;
-        ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+        ctx.strokeRect(boxX + 0.5, boxY + 0.5, boxWidth - 1, boxHeight - 1);
         
-        // Draw price text
+        // Draw price text (limited to 50px width max)
         ctx.fillStyle = textColor;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(priceText, boxX + boxWidth / 2, y);
+        ctx.fillText(priceText, boxX + boxWidth / 2, y + 0.5, 50);
         ctx.restore();
     });
     
