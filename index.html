@@ -48,6 +48,116 @@
                 <div class="tf-option" data-tf="D1">D1 (يومي)</div>
             </div>
 
+            <!-- Technical Drawings Selector Popup -->
+            <div class="drawings-popup hidden" id="drawings-popup">
+                <div class="popup-title">إدراج عنصر فني</div>
+                <div class="popup-options">
+                    <button class="popup-option-btn" id="tool-draw-rect-btn">
+                        <span class="tool-icon">⬜</span> مستطيل (Rectangle)
+                    </button>
+                    <button class="popup-option-btn" id="tool-draw-arrow-btn">
+                        <span class="tool-icon">↗️</span> خط سهم (Arrow)
+                    </button>
+                    <button class="popup-option-btn" id="tool-draw-clear-btn" style="color: var(--mt5-red);">
+                        <span>🗑️</span> مسح جميع الرسومات
+                    </button>
+                </div>
+            </div>
+
+            <!-- Drawing Properties Modal (خصائص) -->
+            <div class="properties-modal hidden" id="properties-modal">
+                <div class="prop-header">
+                    <button class="prop-back-btn" id="prop-cancel-btn">تم</button>
+                    <div class="prop-title">خصائص</div>
+                    <button class="prop-save-btn" id="prop-save-btn">حفظ</button>
+                </div>
+                <div class="prop-scroll-content">
+                    <!-- الثوابت (Constants) -->
+                    <div class="prop-section-title">الثوابت</div>
+                    <div class="prop-group">
+                        <div class="prop-item">
+                            <span>الاسم</span>
+                            <input type="text" id="prop-name-input" value="مستطيل">
+                        </div>
+                        <div class="prop-item" id="prop-fill-row">
+                            <span>نافذ (تعبئة)</span>
+                            <label class="ios-switch">
+                                <input type="checkbox" id="prop-fill-checkbox" checked>
+                                <span class="ios-slider"></span>
+                            </label>
+                        </div>
+                        <div class="prop-item">
+                            <span>قفل العنصر</span>
+                            <label class="ios-switch">
+                                <input type="checkbox" id="prop-lock-checkbox">
+                                <span class="ios-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- إحداثيات (Coordinates) -->
+                    <div class="prop-section-title">إحداثيات</div>
+                    <div class="prop-group">
+                        <div class="prop-coord-row">
+                            <input type="number" id="prop-price1-input" step="0.001" style="width: 45%;">
+                            <input type="text" id="prop-time1-input" readonly style="width: 25%; text-align: center;">
+                            <input type="text" id="prop-date1-input" readonly style="width: 25%; text-align: center;">
+                        </div>
+                        <div class="prop-coord-row">
+                            <input type="number" id="prop-price2-input" step="0.001" style="width: 45%;">
+                            <input type="text" id="prop-time2-input" readonly style="width: 25%; text-align: center;">
+                            <input type="text" id="prop-date2-input" readonly style="width: 25%; text-align: center;">
+                        </div>
+                    </div>
+
+                    <!-- تخيل (Visualization) -->
+                    <div class="prop-section-title">تخيل</div>
+                    <div class="prop-group">
+                        <div class="prop-item">
+                            <span>رمز</span>
+                            <span class="prop-value">XAUUSD</span>
+                        </div>
+                        <div class="prop-item">
+                            <span>الإطار الزمني</span>
+                            <span class="prop-value">جميع الإطارات الزمنية</span>
+                        </div>
+                    </div>
+
+                    <!-- نمط (Style) -->
+                    <div class="prop-section-title">نمط</div>
+                    <div class="prop-group" style="padding: 15px;">
+                        <div class="prop-style-row">
+                            <span style="font-size: 13px;">نمط</span>
+                            <div class="prop-color-circle-wrapper">
+                                <input type="color" id="prop-color-picker" value="#007aff">
+                            </div>
+                        </div>
+                        <div class="prop-style-row" style="margin-top: 15px;">
+                            <span>السماكة</span>
+                            <input type="range" id="prop-thickness-slider" min="1" max="5" value="2" style="width: 60%;">
+                        </div>
+                        <div class="prop-style-row" style="margin-top: 15px;" id="prop-dash-row">
+                            <span>الشكل</span>
+                            <select id="prop-dash-select" style="padding: 3px; font-size: 12px; border-radius: 4px; border: 1px solid #ccc;">
+                                <option value="solid">متصل (Solid)</option>
+                                <option value="dashed">متقطع (Dashed)</option>
+                                <option value="dotted">منقط (Dotted)</option>
+                            </select>
+                        </div>
+                        <div class="prop-item" style="padding: 10px 0 0 0; border-bottom: none; margin-top: 10px;">
+                            <span>رسم كخلفية</span>
+                            <label class="ios-switch">
+                                <input type="checkbox" id="prop-bg-checkbox" checked>
+                                <span class="ios-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- أزرار إضافية -->
+                    <button class="prop-delete-btn" id="prop-delete-btn">حذف العنصر الفني</button>
+                </div>
+            </div>
+
             <!-- MT5 One-Click Trading Panel (Toggleable, Styled with CSS) -->
             <div class="trading-panel hidden" id="one-click-panel">
                 <div class="trade-btn sell" id="quick-sell-btn">
@@ -160,7 +270,27 @@
                         </div>
 
                         <div class="settings-group">
+                            <div class="settings-title">مظهر المنصة (Appearance)</div>
+                            <div class="settings-item">
+                                <span>الوضع الليلي (Dark Mode)</span>
+                                <label class="ios-switch">
+                                    <input type="checkbox" id="dark-mode-toggle">
+                                    <span class="ios-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
                             <div class="settings-title">الألوان (Colors)</div>
+                            <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                                <span style="font-weight: bold; font-size: 12px; color: #8e8e93;">النماذج الجاهزة (Presets)</span>
+                                <div class="presets-container" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px;">
+                                    <button class="preset-btn active" id="preset-default">افتراضي</button>
+                                    <button class="preset-btn" id="preset-green-black">أخضر/أسود</button>
+                                    <button class="preset-btn" id="preset-black-white">أسود/أبيض</button>
+                                    <button class="preset-btn" id="preset-tv">ترادينج فيو</button>
+                                </div>
+                            </div>
                             <div class="settings-color-container">
                                 <div class="settings-color-item">
                                     <span>أمام</span>

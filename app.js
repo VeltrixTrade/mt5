@@ -51,6 +51,13 @@ const State = {
     // Timeframe Configuration
     timeframeMinutes: 5,
     
+    // Technical drawing state
+    isRectToolActive: false,
+    isArrowToolActive: false,
+    drawings: JSON.parse(localStorage.getItem('mt5_drawings')) || [],
+    selectedDrawingIdx: -1,
+    isDarkMode: JSON.parse(localStorage.getItem('mt5_dark_mode')) || false,
+    
     // Customizable Chart Colors
     colors: JSON.parse(localStorage.getItem('mt5_chart_colors')) || {
         foreground: '#6e717a',
@@ -365,10 +372,7 @@ function drawChartFrame() {
         const y = yStart + i * yStep;
         const gridPrice = getPriceFromY(y);
         
-        ctx.beginPath();
-        ctx.moveTo(MARGIN_LEFT, y);
-        ctx.lineTo(MARGIN_LEFT + chartWidth, y);
-        ctx.stroke();
+        // Horizontal grid line removed
         
         ctx.save();
         ctx.setLineDash([]); // solid text and ticks
@@ -389,12 +393,12 @@ function drawChartFrame() {
         ctx.restore();
     }
     
-    // 2. Vertical time grid lines (exactly 4 labels spaced at specific pixel offsets: 30px from left, 96px between each)
+    // 2. Vertical time grid lines (exactly 4 labels spaced at specific pixel offsets: 33px from left, 96px between each)
     const targetXPositions = [
-        MARGIN_LEFT + 30,
-        MARGIN_LEFT + 30 + 96,
-        MARGIN_LEFT + 30 + 96 * 2,
-        MARGIN_LEFT + 30 + 96 * 3
+        MARGIN_LEFT + 33,
+        MARGIN_LEFT + 33 + 96,
+        MARGIN_LEFT + 33 + 96 * 2,
+        MARGIN_LEFT + 33 + 96 * 3
     ];
     
     targetXPositions.forEach((targetX, index) => {
@@ -405,35 +409,221 @@ function drawChartFrame() {
         const candle = activeCandles[idx];
         if (!candle) return;
         
-        const x = getX(idx);
+        // Cap drawX to be inside the horizontal line (leaving 1px safety padding from the vertical boundary)
+        const drawX = Math.min(targetX, MARGIN_LEFT + chartWidth - 1);
         
-        ctx.beginPath();
-        ctx.moveTo(x, MARGIN_TOP);
-        ctx.lineTo(x, MARGIN_TOP + chartHeight);
-        ctx.stroke();
-        
+        // Draw tick mark and time label directly at drawX (fixed screen positions matching MT5 layout)
         ctx.save();
         ctx.setLineDash([]); // solid text and ticks
         ctx.strokeStyle = State.colors.grid;
         ctx.lineWidth = 1;
         
-        // Draw axis tick pointing downwards (adding 4 to y)
+        // Draw axis tick pointing downwards directly at drawX
         ctx.beginPath();
-        ctx.moveTo(x, MARGIN_TOP + chartHeight);
-        ctx.lineTo(x, MARGIN_TOP + chartHeight + 4);
+        ctx.moveTo(drawX, MARGIN_TOP + chartHeight);
+        ctx.lineTo(drawX, MARGIN_TOP + chartHeight + 4);
         ctx.stroke();
         
         if (index < targetXPositions.length - 1) {
             ctx.textAlign = 'left';
             ctx.font = '11px ' + FONT_STACK;
             ctx.fillStyle = State.colors.foreground;
-            ctx.fillText(candle.timeLabel, x + 3, MARGIN_TOP + chartHeight + 14, 73);
+            // Draw time label aligned to drawX
+            ctx.fillText(candle.timeLabel, drawX + 3, MARGIN_TOP + chartHeight + 14, 73);
         }
         ctx.restore();
     });
     ctx.restore();
     
-    // 2. Draw Candlesticks (Custom Colors: barUp, barDown, bull, bear)
+    // 2. Draw Technical Drawings (Rectangles & Arrows)
+    ctx.save();
+    // Clip drawings to chart active area (0 to chartWidth)
+    ctx.beginPath();
+    ctx.rect(0, MARGIN_TOP, chartWidth, chartHeight);
+    ctx.clip();
+    
+    // Draw saved drawings
+    State.drawings.forEach((d, index) => {
+        if (d.type === 'rectangle') {
+            const xStart = getX(d.startIdx);
+            const xEnd = getX(d.endIdx);
+            const yStart = getY(d.startPrice);
+            const yEnd = getY(d.endPrice);
+            
+            const rectX = Math.min(xStart, xEnd);
+            const rectY = Math.min(yStart, yEnd);
+            const rectW = Math.abs(xEnd - xStart);
+            const rectH = Math.abs(yEnd - yStart);
+            
+            if (d.isFilled) {
+                ctx.fillStyle = d.fillColor;
+                ctx.globalAlpha = d.fillOpacity !== undefined ? d.fillOpacity : 0.3;
+                ctx.fillRect(rectX, rectY, rectW, rectH);
+            }
+            
+            ctx.strokeStyle = d.borderColor;
+            ctx.lineWidth = d.thickness || 1.5;
+            ctx.globalAlpha = 1.0;
+            
+            if (d.dashStyle === 'dashed') {
+                ctx.setLineDash([6, 4]);
+            } else if (d.dashStyle === 'dotted') {
+                ctx.setLineDash([2, 2]);
+            } else {
+                ctx.setLineDash([]);
+            }
+            
+            ctx.strokeRect(rectX, rectY, rectW, rectH);
+            
+            // Draw anchors if selected
+            if (State.selectedDrawingIdx === index) {
+                ctx.save();
+                ctx.fillStyle = '#007aff';
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([]);
+                
+                ctx.beginPath(); ctx.arc(xStart, yStart, 5, 0, 2*Math.PI); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.arc(xEnd, yEnd, 5, 0, 2*Math.PI); ctx.fill(); ctx.stroke();
+                ctx.restore();
+            }
+        } else if (d.type === 'arrow') {
+            const xStart = getX(d.startIdx);
+            const xEnd = getX(d.endIdx);
+            const yStart = getY(d.startPrice);
+            const yEnd = getY(d.endPrice);
+            
+            ctx.save();
+            ctx.strokeStyle = d.borderColor || '#007aff';
+            ctx.fillStyle = d.borderColor || '#007aff';
+            ctx.lineWidth = d.thickness || 2;
+            ctx.globalAlpha = 1.0;
+            
+            if (d.dashStyle === 'dashed') {
+                ctx.setLineDash([6, 4]);
+            } else if (d.dashStyle === 'dotted') {
+                ctx.setLineDash([2, 2]);
+            } else {
+                ctx.setLineDash([]);
+            }
+            
+            // Draw shaft
+            ctx.beginPath();
+            ctx.moveTo(xStart, yStart);
+            ctx.lineTo(xEnd, yEnd);
+            ctx.stroke();
+            
+            // Draw arrowhead at end
+            ctx.setLineDash([]);
+            const angle = Math.atan2(yEnd - yStart, xEnd - xStart);
+            const headSize = (d.thickness || 2) * 5 + 6;
+            ctx.beginPath();
+            ctx.moveTo(xEnd, yEnd);
+            ctx.lineTo(xEnd - headSize * Math.cos(angle - Math.PI / 6), yEnd - headSize * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(xEnd - headSize * Math.cos(angle + Math.PI / 6), yEnd - headSize * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.restore();
+            
+            // Draw anchors if selected
+            if (State.selectedDrawingIdx === index) {
+                ctx.save();
+                ctx.fillStyle = '#007aff';
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                
+                ctx.beginPath(); ctx.arc(xStart, yStart, 5, 0, 2*Math.PI); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.arc(xEnd, yEnd, 5, 0, 2*Math.PI); ctx.fill(); ctx.stroke();
+                ctx.restore();
+            }
+        }
+    });
+    
+    // Draw current active rectangle in progress
+    if (isDrawingRect) {
+        const xStart = getX(rectStartIdx);
+        const xEnd = getX(rectCurrentIdx);
+        const yStart = getY(rectStartPrice);
+        const yEnd = getY(rectCurrentPrice);
+        
+        const rectX = Math.min(xStart, xEnd);
+        const rectY = Math.min(yStart, yEnd);
+        const rectW = Math.abs(xEnd - xStart);
+        const rectH = Math.abs(yEnd - yStart);
+        
+        const isFilled = document.getElementById('prop-fill-checkbox').checked;
+        const borderColor = document.getElementById('prop-color-picker').value;
+        const thickness = parseFloat(document.getElementById('prop-thickness-slider').value) || 2;
+        const dashStyle = document.getElementById('prop-dash-select').value || 'solid';
+        
+        ctx.save();
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = thickness;
+        
+        if (dashStyle === 'dashed') {
+            ctx.setLineDash([6, 4]);
+        } else if (dashStyle === 'dotted') {
+            ctx.setLineDash([2, 2]);
+        } else {
+            ctx.setLineDash([]);
+        }
+        
+        if (isFilled) {
+            ctx.fillStyle = borderColor;
+            ctx.globalAlpha = 0.3;
+            ctx.fillRect(rectX, rectY, rectW, rectH);
+            ctx.globalAlpha = 1.0;
+        }
+        
+        ctx.strokeRect(rectX, rectY, rectW, rectH);
+        ctx.restore();
+    }
+    
+    // Draw current active arrow in progress
+    if (isDrawingArrow) {
+        const xStart = getX(arrowStartIdx);
+        const xEnd = getX(arrowCurrentIdx);
+        const yStart = getY(arrowStartPrice);
+        const yEnd = getY(arrowCurrentPrice);
+        
+        const borderColor = document.getElementById('prop-color-picker').value;
+        const thickness = parseFloat(document.getElementById('prop-thickness-slider').value) || 2;
+        const dashStyle = document.getElementById('prop-dash-select').value || 'solid';
+        
+        ctx.save();
+        ctx.strokeStyle = borderColor;
+        ctx.fillStyle = borderColor;
+        ctx.lineWidth = thickness;
+        
+        if (dashStyle === 'dashed') {
+            ctx.setLineDash([6, 4]);
+        } else if (dashStyle === 'dotted') {
+            ctx.setLineDash([2, 2]);
+        } else {
+            ctx.setLineDash([]);
+        }
+        
+        ctx.beginPath();
+        ctx.moveTo(xStart, yStart);
+        ctx.lineTo(xEnd, yEnd);
+        ctx.stroke();
+        
+        ctx.setLineDash([]);
+        const angle = Math.atan2(yEnd - yStart, xEnd - xStart);
+        const headSize = thickness * 5 + 6;
+        ctx.beginPath();
+        ctx.moveTo(xEnd, yEnd);
+        ctx.lineTo(xEnd - headSize * Math.cos(angle - Math.PI / 6), yEnd - headSize * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(xEnd - headSize * Math.cos(angle + Math.PI / 6), yEnd - headSize * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.restore();
+    }
+    ctx.restore();
+
+    // 3. Draw Candlesticks (Custom Colors: barUp, barDown, bull, bear)
     visibleCandles.forEach((candle, idx) => {
         const absIdx = startIndex + idx;
         const x = getX(absIdx);
@@ -496,10 +686,10 @@ function drawChartFrame() {
         
         const boxX = MARGIN_LEFT + chartWidth + 2;
         
-        // 1. Draw Dashed Line (extends from start of chart to start of price box)
+        // 1. Draw Dashed Line (extends from start of chart to vertical separator boundary)
         ctx.beginPath();
         ctx.moveTo(0, y);
-        ctx.lineTo(boxX, y);
+        ctx.lineTo(MARGIN_LEFT + chartWidth, y);
         ctx.stroke();
         ctx.restore();
         
@@ -532,9 +722,9 @@ function drawChartFrame() {
         ctx.fillStyle = boxBgColor;
         ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
         
-        // Draw border: 1px Solid
+        // Draw border: 1px Solid (lineWidth 0.75 for softer/thinner look)
         ctx.strokeStyle = textColor;
-        ctx.lineWidth = 1.0;
+        ctx.lineWidth = 0.75;
         ctx.strokeRect(boxX + 0.5, boxY + 0.5, boxWidth - 1, boxHeight - 1);
         
         // Draw price text (limited to 50px width max)
@@ -804,6 +994,28 @@ function getSecondsToNextCandle() {
 }
 
 // --- INTERACTIVE ACTIONS & PAN/ZOOM ---
+let isDrawingRect = false;
+let rectStartIdx = 0;
+let rectStartPrice = 0;
+let rectCurrentIdx = 0;
+let rectCurrentPrice = 0;
+
+let isDrawingArrow = false;
+let arrowStartIdx = 0;
+let arrowStartPrice = 0;
+let arrowCurrentIdx = 0;
+let arrowCurrentPrice = 0;
+
+let isResizingDrawing = false;
+let draggedAnchorIndex = 0; // 1 for start, 2 for end
+let isDraggingDrawing = false;
+let dragDrawingStartIdx1 = 0;
+let dragDrawingStartPrice1 = 0;
+let dragDrawingStartIdx2 = 0;
+let dragDrawingStartPrice2 = 0;
+let dragDrawingMouseStartX = 0;
+let dragDrawingMouseStartY = 0;
+
 let isDragging = false;
 let isPriceScaling = false;
 let dragStartX = 0;
@@ -843,6 +1055,14 @@ function getPriceFromYGlobal(y) {
     return State.manualYMin + ((MARGIN_TOP + chartHeight - y) / chartHeight) * (State.manualYMax - State.manualYMin);
 }
 
+function distToSegment(px, py, x1, y1, x2, y2) {
+    const l2 = (x2 - x1)**2 + (y2 - y1)**2;
+    if (l2 === 0) return Math.hypot(px - x1, py - y1);
+    let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)));
+}
+
 function handlePointerDown(e) {
     // Prevent default browser gestures (zoom/pan)
     if (e.cancelable) {
@@ -857,6 +1077,107 @@ function handlePointerDown(e) {
     const x = clientX - rect.left;
     const y = clientY - rect.top;
     
+    // Technical drawing tool start check (Rectangle)
+    if (State.isRectToolActive) {
+        isDrawingRect = true;
+        rectStartIdx = getCandleIndexFromX(x);
+        rectStartPrice = getPriceFromYGlobal(y);
+        rectCurrentIdx = rectStartIdx;
+        rectCurrentPrice = rectStartPrice;
+        return;
+    }
+    
+    // Technical drawing tool start check (Arrow Line)
+    if (State.isArrowToolActive) {
+        isDrawingArrow = true;
+        arrowStartIdx = getCandleIndexFromX(x);
+        arrowStartPrice = getPriceFromYGlobal(y);
+        arrowCurrentIdx = arrowStartIdx;
+        arrowCurrentPrice = arrowStartPrice;
+        return;
+    }
+
+    // Check if clicked near anchors of selected drawing to resize it
+    if (State.selectedDrawingIdx !== -1) {
+        const d = State.drawings[State.selectedDrawingIdx];
+        if (d && !d.isLocked) {
+            const x1 = getX(d.startIdx);
+            const x2 = getX(d.endIdx);
+            const y1 = getY(d.startPrice);
+            const y2 = getY(d.endPrice);
+            
+            if (Math.hypot(x - x1, y - y1) < 15) {
+                isResizingDrawing = true;
+                draggedAnchorIndex = 1;
+                return;
+            }
+            if (Math.hypot(x - x2, y - y2) < 15) {
+                isResizingDrawing = true;
+                draggedAnchorIndex = 2;
+                return;
+            }
+        }
+    }
+    
+    // Check if clicked on any drawing to select it
+    let foundDrawingIdx = -1;
+    for (let i = State.drawings.length - 1; i >= 0; i--) {
+        const d = State.drawings[i];
+        const x1 = getX(d.startIdx);
+        const x2 = getX(d.endIdx);
+        const y1 = getY(d.startPrice);
+        const y2 = getY(d.endPrice);
+        
+        if (d.type === 'rectangle') {
+            const minX = Math.min(x1, x2);
+            const maxX = Math.max(x1, x2);
+            const minY = Math.min(y1, y2);
+            const maxY = Math.max(y1, y2);
+            
+            if (d.isFilled) {
+                if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+                    foundDrawingIdx = i;
+                    break;
+                }
+            } else {
+                const onLeft = Math.abs(x - minX) < 10 && y >= minY && y <= maxY;
+                const onRight = Math.abs(x - maxX) < 10 && y >= minY && y <= maxY;
+                const onTop = Math.abs(y - minY) < 10 && x >= minX && x <= maxX;
+                const onBottom = Math.abs(y - maxY) < 10 && x >= minX && x <= maxX;
+                if (onLeft || onRight || onTop || onBottom) {
+                    foundDrawingIdx = i;
+                    break;
+                }
+            }
+        } else if (d.type === 'arrow') {
+            if (distToSegment(x, y, x1, y1, x2, y2) < 12) {
+                foundDrawingIdx = i;
+                break;
+            }
+        }
+    }
+    
+    if (foundDrawingIdx !== -1) {
+        State.selectedDrawingIdx = foundDrawingIdx;
+        const d = State.drawings[foundDrawingIdx];
+        if (!d.isLocked) {
+            isDraggingDrawing = true;
+            dragDrawingStartIdx1 = d.startIdx;
+            dragDrawingStartPrice1 = d.startPrice;
+            dragDrawingStartIdx2 = d.endIdx;
+            dragDrawingStartPrice2 = d.endPrice;
+            dragDrawingMouseStartX = x;
+            dragDrawingMouseStartY = y;
+        }
+        drawChart();
+        return;
+    } else {
+        if (State.selectedDrawingIdx !== -1) {
+            State.selectedDrawingIdx = -1;
+            drawChart();
+        }
+    }
+
     // Replay mode start candle selection click
     if (State.isReplaySelectMode) {
         const clickedIdx = getCandleIndexFromX(x);
@@ -934,6 +1255,63 @@ function handlePointerMove(e) {
     const x = clientX - rect.left;
     const y = clientY - rect.top;
     
+    // Technical drawing tool update check (Rectangle)
+    if (isDrawingRect) {
+        rectCurrentIdx = getCandleIndexFromX(x);
+        rectCurrentPrice = getPriceFromYGlobal(y);
+        drawChart();
+        return;
+    }
+    
+    // Technical drawing tool update check (Arrow Line)
+    if (isDrawingArrow) {
+        arrowCurrentIdx = getCandleIndexFromX(x);
+        arrowCurrentPrice = getPriceFromYGlobal(y);
+        drawChart();
+        return;
+    }
+    
+    // Anchor resizing check
+    if (isResizingDrawing && State.selectedDrawingIdx !== -1) {
+        const d = State.drawings[State.selectedDrawingIdx];
+        if (d) {
+            const currentIdx = getCandleIndexFromX(x);
+            const currentPrice = getPriceFromYGlobal(y);
+            
+            if (draggedAnchorIndex === 1) {
+                d.startIdx = currentIdx;
+                d.startPrice = currentPrice;
+            } else {
+                d.endIdx = currentIdx;
+                d.endPrice = currentPrice;
+            }
+            drawChart();
+        }
+        return;
+    }
+    
+    // Shape moving/dragging check
+    if (isDraggingDrawing && State.selectedDrawingIdx !== -1) {
+        const d = State.drawings[State.selectedDrawingIdx];
+        if (d) {
+            const currentIdx = getCandleIndexFromX(x);
+            const currentPrice = getPriceFromYGlobal(y);
+            
+            const startMouseIdx = getCandleIndexFromX(dragDrawingMouseStartX);
+            const startMousePrice = getPriceFromYGlobal(dragDrawingMouseStartY);
+            
+            const idxDiff = currentIdx - startMouseIdx;
+            const priceDiff = currentPrice - startMousePrice;
+            
+            d.startIdx = dragDrawingStartIdx1 + idxDiff;
+            d.startPrice = dragDrawingStartPrice1 + priceDiff;
+            d.endIdx = dragDrawingStartIdx2 + idxDiff;
+            d.endPrice = dragDrawingStartPrice2 + priceDiff;
+            drawChart();
+        }
+        return;
+    }
+    
     // Replay mode hover selection line
     if (State.isReplaySelectMode) {
         State.replaySelectIndex = getCandleIndexFromX(x);
@@ -980,7 +1358,7 @@ function handlePointerMove(e) {
         if (!State.isAutoYScale) {
             const priceRange = initialPriceMax - initialPriceMin;
             const pricePerPixel = priceRange / chartHeight;
-            const priceShift = -dy * pricePerPixel;
+            const priceShift = dy * pricePerPixel;
             
             State.manualYMin = initialPriceMin + priceShift;
             State.manualYMax = initialPriceMax + priceShift;
@@ -991,12 +1369,132 @@ function handlePointerMove(e) {
 }
 
 function handlePointerUp() {
+    if (isDrawingRect) {
+        isDrawingRect = false;
+        
+        if (rectStartIdx !== rectCurrentIdx || Math.abs(rectStartPrice - rectCurrentPrice) > 0.01) {
+            const borderColor = document.getElementById('prop-color-picker').value || '#007aff';
+            const isFilled = document.getElementById('prop-fill-checkbox').checked;
+            const thickness = parseFloat(document.getElementById('prop-thickness-slider').value) || 2;
+            const dashStyle = document.getElementById('prop-dash-select').value || 'solid';
+            const isBg = document.getElementById('prop-bg-checkbox').checked;
+            
+            State.drawings.push({
+                type: 'rectangle',
+                startIdx: rectStartIdx,
+                startPrice: rectStartPrice,
+                endIdx: rectCurrentIdx,
+                endPrice: rectCurrentPrice,
+                borderColor: borderColor,
+                fillColor: borderColor,
+                isFilled: isFilled,
+                fillOpacity: 0.3,
+                thickness: thickness,
+                dashStyle: dashStyle,
+                isLocked: false,
+                drawAsBackground: isBg,
+                name: `مستطيل M5 ${Math.floor(Math.random() * 90000 + 10000)}`
+            });
+            
+            localStorage.setItem('mt5_drawings', JSON.stringify(State.drawings));
+        }
+        
+        State.isRectToolActive = false;
+        const rectBtn = document.getElementById('tool-draw-rect-btn');
+        if (rectBtn) rectBtn.classList.remove('active-tool');
+    }
+
+    if (isDrawingArrow) {
+        isDrawingArrow = false;
+        
+        if (arrowStartIdx !== arrowCurrentIdx || Math.abs(arrowStartPrice - arrowCurrentPrice) > 0.01) {
+            const borderColor = document.getElementById('prop-color-picker').value || '#007aff';
+            const thickness = parseFloat(document.getElementById('prop-thickness-slider').value) || 2;
+            const dashStyle = document.getElementById('prop-dash-select').value || 'solid';
+            const isBg = document.getElementById('prop-bg-checkbox').checked;
+            
+            State.drawings.push({
+                type: 'arrow',
+                startIdx: arrowStartIdx,
+                startPrice: arrowStartPrice,
+                endIdx: arrowCurrentIdx,
+                endPrice: arrowCurrentPrice,
+                borderColor: borderColor,
+                thickness: thickness,
+                dashStyle: dashStyle,
+                isLocked: false,
+                drawAsBackground: isBg,
+                name: `خط السهم M5 ${Math.floor(Math.random() * 90000 + 10000)}`
+            });
+            
+            localStorage.setItem('mt5_drawings', JSON.stringify(State.drawings));
+        }
+        
+        State.isArrowToolActive = false;
+        const arrowBtn = document.getElementById('tool-draw-arrow-btn');
+        if (arrowBtn) arrowBtn.classList.remove('active-tool');
+    }
+
+    if (isResizingDrawing || isDraggingDrawing) {
+        isResizingDrawing = false;
+        isDraggingDrawing = false;
+        localStorage.setItem('mt5_drawings', JSON.stringify(State.drawings));
+    }
+
     isDragging = false;
     isPriceScaling = false;
     touchStartDist = 0;
+    drawChart();
 }
 
 function handleDoubleClick(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Check if clicked on any drawing to edit it
+    let foundDrawingIdx = -1;
+    for (let i = State.drawings.length - 1; i >= 0; i--) {
+        const d = State.drawings[i];
+        const x1 = getX(d.startIdx);
+        const x2 = getX(d.endIdx);
+        const y1 = getY(d.startPrice);
+        const y2 = getY(d.endPrice);
+        
+        if (d.type === 'rectangle') {
+            const minX = Math.min(x1, x2);
+            const maxX = Math.max(x1, x2);
+            const minY = Math.min(y1, y2);
+            const maxY = Math.max(y1, y2);
+            
+            if (d.isFilled) {
+                if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+                    foundDrawingIdx = i;
+                    break;
+                }
+            } else {
+                const onLeft = Math.abs(x - minX) < 15 && y >= minY && y <= maxY;
+                const onRight = Math.abs(x - maxX) < 15 && y >= minY && y <= maxY;
+                const onTop = Math.abs(y - minY) < 15 && x >= minX && x <= maxX;
+                const onBottom = Math.abs(y - maxY) < 15 && x >= minX && x <= maxX;
+                if (onLeft || onRight || onTop || onBottom) {
+                    foundDrawingIdx = i;
+                    break;
+                }
+            }
+        } else if (d.type === 'arrow') {
+            if (distToSegment(x, y, x1, y1, x2, y2) < 15) {
+                foundDrawingIdx = i;
+                break;
+            }
+        }
+    }
+    
+    if (foundDrawingIdx !== -1) {
+        openPropertiesModal(foundDrawingIdx);
+        return;
+    }
+
     // Reset to Auto Y scaling on double click/tap anywhere on chart
     State.isAutoYScale = true;
     State.panOffsetY = 0;
@@ -1509,6 +2007,14 @@ document.addEventListener('click', (e) => {
         (!tfDisplayBtn || e.target !== tfDisplayBtn)) {
         tfDropdown.classList.add('hidden');
     }
+    
+    const elementsBtn = document.getElementById('elements-overlay-btn');
+    const drawingsPopup = document.getElementById('drawings-popup');
+    if (drawingsPopup && !drawingsPopup.classList.contains('hidden') && 
+        !drawingsPopup.contains(e.target) && 
+        e.target !== elementsBtn) {
+        drawingsPopup.classList.add('hidden');
+    }
 });
 
 tfClockBtn.addEventListener('click', (e) => {
@@ -1556,9 +2062,307 @@ document.querySelectorAll('.tf-option').forEach(option => {
     });
 });
 
+const drawingsPopup = document.getElementById('drawings-popup');
+const toolDrawRectBtn = document.getElementById('tool-draw-rect-btn');
+const toolDrawArrowBtn = document.getElementById('tool-draw-arrow-btn');
+const toolDrawClearBtn = document.getElementById('tool-draw-clear-btn');
+
 document.getElementById('elements-overlay-btn').addEventListener('click', () => {
-    alert('وضع رسم العناصر والمستويات الفنية مفعل (الخطوط الأفقية والمستويات)');
+    drawingsPopup.classList.toggle('hidden');
+    tfDropdown.classList.add('hidden');
 });
+
+// Avoid closing drawings popup when clicked inside
+drawingsPopup.addEventListener('click', (e) => {
+    e.stopPropagation();
+});
+
+// Toggle Rectangle Draw Tool
+toolDrawRectBtn.addEventListener('click', () => {
+    State.isRectToolActive = !State.isRectToolActive;
+    State.isArrowToolActive = false;
+    toolDrawArrowBtn.classList.remove('active-tool');
+    
+    if (State.isRectToolActive) {
+        toolDrawRectBtn.classList.add('active-tool');
+        alert('أداة رسم المستطيل مفعلة. انقر واسحب إصبعك على الشارت لرسم المستطيل الفني.');
+    } else {
+        toolDrawRectBtn.classList.remove('active-tool');
+    }
+    drawingsPopup.classList.add('hidden');
+});
+
+// Toggle Arrow Draw Tool
+toolDrawArrowBtn.addEventListener('click', () => {
+    State.isArrowToolActive = !State.isArrowToolActive;
+    State.isRectToolActive = false;
+    toolDrawRectBtn.classList.remove('active-tool');
+    
+    if (State.isArrowToolActive) {
+        toolDrawArrowBtn.classList.add('active-tool');
+        alert('أداة رسم السهم مفعلة. انقر واسحب إصبعك على الشارت لرسم خط السهم الفني.');
+    } else {
+        toolDrawArrowBtn.classList.remove('active-tool');
+    }
+    drawingsPopup.classList.add('hidden');
+});
+
+// Clear Drawings
+toolDrawClearBtn.addEventListener('click', () => {
+    if (confirm('هل أنت متأكد من حذف جميع الرسومات الفنية من الشارت؟')) {
+        State.drawings = [];
+        State.selectedDrawingIdx = -1;
+        localStorage.removeItem('mt5_drawings');
+        drawChart();
+    }
+    drawingsPopup.classList.add('hidden');
+});
+
+// Properties Modal Elements
+const propertiesModal = document.getElementById('properties-modal');
+const propNameInput = document.getElementById('prop-name-input');
+const propFillRow = document.getElementById('prop-fill-row');
+const propFillCheckbox = document.getElementById('prop-fill-checkbox');
+const propLockCheckbox = document.getElementById('prop-lock-checkbox');
+const propPrice1Input = document.getElementById('prop-price1-input');
+const propTime1Input = document.getElementById('prop-time1-input');
+const propDate1Input = document.getElementById('prop-date1-input');
+const propPrice2Input = document.getElementById('prop-price2-input');
+const propTime2Input = document.getElementById('prop-time2-input');
+const propDate2Input = document.getElementById('prop-date2-input');
+const propColorPicker = document.getElementById('prop-color-picker');
+const propThicknessSlider = document.getElementById('prop-thickness-slider');
+const propDashRow = document.getElementById('prop-dash-row');
+const propDashSelect = document.getElementById('prop-dash-select');
+const propBgCheckbox = document.getElementById('prop-bg-checkbox');
+
+let currentEditingDrawingIdx = -1;
+
+function openPropertiesModal(idx) {
+    const d = State.drawings[idx];
+    if (!d) return;
+    
+    currentEditingDrawingIdx = idx;
+    
+    // Fill values
+    propNameInput.value = d.name || (d.type === 'rectangle' ? 'مستطيل' : 'خط السهم');
+    propLockCheckbox.checked = !!d.isLocked;
+    
+    if (d.type === 'rectangle') {
+        propFillRow.style.display = 'flex';
+        propFillCheckbox.checked = !!d.isFilled;
+    } else {
+        propFillRow.style.display = 'none';
+    }
+    
+    propPrice1Input.value = d.startPrice.toFixed(3);
+    propPrice2Input.value = d.endPrice.toFixed(3);
+    
+    const candle1 = State.candles[d.startIdx] || { timeLabel: '--:--', dateLabel: '6/26/26' };
+    const candle2 = State.candles[d.endIdx] || { timeLabel: '--:--', dateLabel: '6/26/26' };
+    
+    propTime1Input.value = candle1.timeLabel || '';
+    propDate1Input.value = candle1.dateLabel || '6/26/26';
+    propTime2Input.value = candle2.timeLabel || '';
+    propDate2Input.value = candle2.dateLabel || '6/26/26';
+    
+    propColorPicker.value = d.borderColor || '#007aff';
+    propThicknessSlider.value = d.thickness || 2;
+    propDashSelect.value = d.dashStyle || 'solid';
+    propBgCheckbox.checked = d.drawAsBackground !== undefined ? d.drawAsBackground : true;
+    
+    propertiesModal.classList.remove('hidden');
+}
+
+// Wire properties modal action buttons
+document.getElementById('prop-cancel-btn').addEventListener('click', () => {
+    propertiesModal.classList.add('hidden');
+});
+
+document.getElementById('prop-save-btn').addEventListener('click', () => {
+    if (currentEditingDrawingIdx !== -1) {
+        const d = State.drawings[currentEditingDrawingIdx];
+        if (d) {
+            d.name = propNameInput.value;
+            d.isLocked = propLockCheckbox.checked;
+            d.startPrice = parseFloat(propPrice1Input.value) || d.startPrice;
+            d.endPrice = parseFloat(propPrice2Input.value) || d.endPrice;
+            d.borderColor = propColorPicker.value;
+            d.fillColor = propColorPicker.value;
+            d.thickness = parseInt(propThicknessSlider.value) || 2;
+            d.dashStyle = propDashSelect.value;
+            d.drawAsBackground = propBgCheckbox.checked;
+            
+            if (d.type === 'rectangle') {
+                d.isFilled = propFillCheckbox.checked;
+            }
+            
+            localStorage.setItem('mt5_drawings', JSON.stringify(State.drawings));
+            drawChart();
+        }
+    }
+    propertiesModal.classList.add('hidden');
+});
+
+document.getElementById('prop-delete-btn').addEventListener('click', () => {
+    if (currentEditingDrawingIdx !== -1) {
+        State.drawings.splice(currentEditingDrawingIdx, 1);
+        State.selectedDrawingIdx = -1;
+        localStorage.setItem('mt5_drawings', JSON.stringify(State.drawings));
+        drawChart();
+    }
+    propertiesModal.classList.add('hidden');
+});
+
+// --- SETTINGS COLOR PRESETS & DARK THEME LOGIC ---
+const presets = {
+    default: {
+        foreground: '#6e717a',
+        grid: '#e2e2e4',
+        barUp: '#2962ff',
+        barDown: '#ff1744',
+        bull: '#2962ff',
+        bear: '#ff1744',
+        chartLine: '#00e676',
+        volumes: '#00b0ff',
+        bidLine: '#00A86B',
+        askLine: '#ff9f0a',
+        stopLevels: '#d50000'
+    },
+    greenBlack: {
+        foreground: '#ffffff',
+        grid: '#111111',
+        barUp: '#00ff00',
+        barDown: '#ff0000',
+        bull: '#00ff00',
+        bear: '#ff0000',
+        chartLine: '#00ff00',
+        volumes: '#00ff00',
+        bidLine: '#00ff00',
+        askLine: '#ff9f0a',
+        stopLevels: '#ff0000'
+    },
+    blackWhite: {
+        foreground: '#000000',
+        grid: '#e5e5ea',
+        barUp: '#000000',
+        barDown: '#000000',
+        bull: '#ffffff',
+        bear: '#000000',
+        chartLine: '#000000',
+        volumes: '#8e8e93',
+        bidLine: '#000000',
+        askLine: '#ff9f0a',
+        stopLevels: '#000000'
+    },
+    tv: {
+        foreground: '#787b86',
+        grid: '#f0f3fa',
+        barUp: '#089981',
+        barDown: '#f23645',
+        bull: '#089981',
+        bear: '#f23645',
+        chartLine: '#2962ff',
+        volumes: '#26a69a',
+        bidLine: '#089981',
+        askLine: '#ff9f0a',
+        stopLevels: '#ff0000'
+    }
+};
+
+function applyPreset(presetKey) {
+    const p = presets[presetKey];
+    if (!p) return;
+    
+    // Copy colors
+    State.colors = { ...p };
+    
+    // Auto-adjust default grid colors if dark mode is active
+    if (State.isDarkMode && presetKey === 'default') {
+        State.colors.grid = '#2c2c2e';
+        State.colors.foreground = '#a2a2aa';
+    }
+    
+    localStorage.setItem('mt5_chart_colors', JSON.stringify(State.colors));
+    
+    // Update settings screen color circles
+    Object.keys(colorInputs).forEach(key => {
+        const input = colorInputs[key];
+        if (input) input.value = State.colors[key];
+    });
+    
+    drawChart();
+}
+
+function updatePresetButtons(activeBtnId) {
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const activeBtn = document.getElementById(activeBtnId);
+    if (activeBtn) activeBtn.classList.add('active');
+}
+
+// Bind preset button clicks
+document.getElementById('preset-default').addEventListener('click', () => {
+    applyPreset('default');
+    updatePresetButtons('preset-default');
+});
+document.getElementById('preset-green-black').addEventListener('click', () => {
+    applyPreset('greenBlack');
+    updatePresetButtons('preset-green-black');
+});
+document.getElementById('preset-black-white').addEventListener('click', () => {
+    applyPreset('blackWhite');
+    updatePresetButtons('preset-black-white');
+});
+document.getElementById('preset-tv').addEventListener('click', () => {
+    applyPreset('tv');
+    updatePresetButtons('preset-tv');
+});
+
+// Dark Mode Toggle Logic
+const darkModeToggle = document.getElementById('dark-mode-toggle');
+
+function setDarkMode(enabled) {
+    State.isDarkMode = enabled;
+    localStorage.setItem('mt5_dark_mode', JSON.stringify(enabled));
+    if (darkModeToggle) darkModeToggle.checked = enabled;
+    
+    if (enabled) {
+        document.body.classList.add('dark-theme');
+        if (State.colors.grid === '#e2e2e4') {
+            State.colors.grid = '#2c2c2e';
+            State.colors.foreground = '#a2a2aa';
+            localStorage.setItem('mt5_chart_colors', JSON.stringify(State.colors));
+        }
+    } else {
+        document.body.classList.remove('dark-theme');
+        if (State.colors.grid === '#2c2c2e') {
+            State.colors.grid = '#e2e2e4';
+            State.colors.foreground = '#6e717a';
+            localStorage.setItem('mt5_chart_colors', JSON.stringify(State.colors));
+        }
+    }
+    
+    // Update inputs
+    Object.keys(colorInputs).forEach(key => {
+        const input = colorInputs[key];
+        if (input) input.value = State.colors[key];
+    });
+    
+    drawChart();
+}
+
+if (darkModeToggle) {
+    darkModeToggle.addEventListener('change', (e) => {
+        setDarkMode(e.target.checked);
+    });
+}
+
+// Initialize Dark Mode on startup
+setTimeout(() => {
+    setDarkMode(State.isDarkMode);
+}, 50);
 
 document.getElementById('indicators-overlay-btn').addEventListener('click', () => {
     alert('قائمة المؤشرات الفنية (المتوسطات المتحركة، مؤشر القوة RSI)');
@@ -1601,6 +2405,9 @@ resetDataBtn.addEventListener('click', () => {
     localStorage.removeItem('mt5_imported_candles');
     localStorage.removeItem('mt5_imported_filename');
     localStorage.removeItem('mt5_chart_colors');
+    localStorage.removeItem('mt5_drawings');
+    localStorage.removeItem('mt5_dark_mode');
+    State.drawings = [];
     
     // Restore default colors
     State.colors = {
@@ -1617,6 +2424,10 @@ resetDataBtn.addEventListener('click', () => {
         stopLevels: '#d50000'
     };
     
+    // Disable Dark Mode
+    setDarkMode(false);
+    updatePresetButtons('preset-default');
+    
     // Update color inputs
     Object.keys(colorInputs).forEach(key => {
         const input = colorInputs[key];
@@ -1625,7 +2436,7 @@ resetDataBtn.addEventListener('click', () => {
     
     generateMockData();
     drawChart();
-    alert('تم استعادة البيانات التاريخية الافتراضية وحذف الملف المحفوظ والألوان المخصصة.');
+    alert('تم استعادة البيانات التاريخية الافتراضية وحذف الملف المحفوظ والألوان المخصصة والرسومات الفنية.');
 });
 
 // Bind Color inputs change events
