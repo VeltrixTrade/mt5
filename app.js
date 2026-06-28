@@ -309,7 +309,7 @@ function drawChart() {
     ctx.strokeStyle = '#e2e2e4';
     ctx.lineWidth = 0.5;
     ctx.setLineDash([1, 2]); // dotted lines
-    ctx.font = '11px ' + FONT_STACK;
+    ctx.font = '12px ' + FONT_STACK;
     ctx.fillStyle = '#6e717a';
     
     // Price grid lines: 15 labels, spaced to fit exactly 99px top offset and 135px bottom offset.
@@ -477,9 +477,9 @@ function drawChart() {
         ctx.fillStyle = '#00A86B';
         ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
         
-        // Price text: same size (11px) as static price labels, color #ffffff for high contrast
+        // Price text: same size (12px) as static price labels, color #ffffff for high contrast
         ctx.fillStyle = '#ffffff';
-        ctx.font = '400 11px ' + FONT_STACK;
+        ctx.font = '400 12px ' + FONT_STACK;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.letterSpacing = '1.5px';
