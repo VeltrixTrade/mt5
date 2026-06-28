@@ -1311,8 +1311,13 @@ function handlePointerMove(e) {
         const t1 = e.touches[0];
         const t2 = e.touches[1];
         const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-        const factor = dist / touchStartDist;
         
+        if (touchStartDist <= 0) {
+            touchStartDist = dist;
+            initialZoom = State.zoom;
+        }
+        
+        const factor = touchStartDist > 0 ? dist / touchStartDist : 1;
         State.zoom = Math.max(3, Math.min(30, initialZoom * factor));
         drawChart();
         return;
