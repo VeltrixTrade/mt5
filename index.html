@@ -24,6 +24,7 @@
             <div class="mt5-header-container">
                 <img src="الشريط العلوي.JPG" class="mt5-header-img" alt="الشريط العلوي">
                 
+
                 <!-- Transparent click zones mapped over the image buttons -->
                 <!-- One-Click Trading toggle (Far Left) -->
                 <button class="header-overlay-btn" id="quick-trade-toggle-btn" title="تداول بضغطة واحدة" style="left: 3%; width: 10%;"></button>
@@ -86,6 +87,13 @@
                                 <span class="ios-slider"></span>
                             </label>
                         </div>
+                        <div class="prop-item" id="prop-border-row">
+                            <span>رسم الإطار</span>
+                            <label class="ios-switch">
+                                <input type="checkbox" id="prop-border-checkbox" checked>
+                                <span class="ios-slider"></span>
+                            </label>
+                        </div>
                         <div class="prop-item">
                             <span>قفل العنصر</span>
                             <label class="ios-switch">
@@ -129,7 +137,7 @@
                         <div class="prop-style-row">
                             <span style="font-size: 13px;">نمط</span>
                             <div class="prop-color-circle-wrapper">
-                                <input type="color" id="prop-color-picker" value="#007aff">
+                                <input type="color" id="prop-color-picker" value="#C2C2C2">
                             </div>
                         </div>
                         <div class="prop-style-row" style="margin-top: 15px;">
@@ -166,7 +174,7 @@
                 </div>
                 <div class="lot-selector">
                     <button class="lot-adjust" id="lot-down">▼</button>
-                    <input type="number" id="lot-input" value="1.00" step="0.01" min="0.01">
+                    <input type="number" id="lot-input" value="0.01" step="0.01" min="0.01">
                     <button class="lot-adjust" id="lot-up">▲</button>
                 </div>
                 <div class="trade-btn buy" id="quick-buy-btn">
@@ -293,6 +301,10 @@
                             </div>
                             <div class="settings-color-container">
                                 <div class="settings-color-item">
+                                    <span>خلفية الشارت</span>
+                                    <input type="color" id="color-bg" value="#ffffff">
+                                </div>
+                                <div class="settings-color-item">
                                     <span>أمام</span>
                                     <input type="color" id="color-foreground" value="#6e717a">
                                 </div>
@@ -411,6 +423,7 @@
                 <div class="nav-mask" id="nav-mask-chart-grey"></div>
                 <div class="nav-tint" id="nav-tint-active"></div>
                 
+
                 <!-- Transparent click zones for 5 tabs -->
                 <!-- Quotes (الأسعار) - Far Right -->
                 <button class="nav-overlay-btn" id="nav-quotes" data-target="page-quotes" style="right: 0;"></button>

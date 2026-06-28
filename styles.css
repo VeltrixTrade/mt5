@@ -23,14 +23,15 @@
 
 /* Dark theme overrides */
 .dark-theme {
-    --bg-page: #1c1c1e;
-    --bg-page-header: #2c2c2e;
-    --bg-card: #1c1c1e;
+    --bg-page: #000000;
+    --bg-page-header: #000000;
+    --bg-card: #000000;
     --text-primary: #ffffff;
     --text-secondary: #a2a2aa;
-    --border-color: #38383a;
-    --input-bg: #2c2c2e;
-    --toolbar-filter: invert(0.95) hue-rotate(180deg);
+    --border-color: #222222;
+    --input-bg: #1c1c1e;
+    --mt5-border: #222222;
+    --toolbar-filter: invert(1) hue-rotate(180deg);
 }
 
 * {
@@ -136,7 +137,7 @@ button, input, select, textarea {
     position: relative;
     width: 100%;
     height: auto;
-    background: #fff;
+    background: var(--bg-page-header);
     border-bottom: none;
     flex-shrink: 0;
 }
@@ -163,7 +164,7 @@ button, input, select, textarea {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #ffffff;
+    background: var(--bg-page-header);
     border-bottom: 1.5px solid var(--mt5-border);
     height: 42px;
     padding: 0;
@@ -671,7 +672,7 @@ button, input, select, textarea {
     position: relative;
     width: 100%;
     height: auto;
-    background: #fff;
+    background: var(--bg-page-header);
     border-top: none; /* removed line between time scale and bottom bar */
     flex-shrink: 0;
 }
@@ -973,11 +974,12 @@ button, input, select, textarea {
 
 /* Color customizer styling */
 .settings-color-container {
-    background: #ffffff;
+    background: var(--bg-page);
     border-radius: 12px;
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border: 1px solid var(--border-color);
     overflow: hidden;
     margin: 10px 15px;
+    transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .settings-color-item {
@@ -985,8 +987,9 @@ button, input, select, textarea {
     justify-content: space-between;
     align-items: center;
     padding: 10px 16px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid var(--border-color);
     direction: rtl; /* Align text to right for Arabic */
+    transition: border-color 0.3s ease;
 }
 
 .settings-color-item:last-child {
@@ -1331,4 +1334,6 @@ input:checked + .ios-slider:before {
     border: 1px solid var(--border-color);
     color: var(--text-primary);
 }
+
+
 

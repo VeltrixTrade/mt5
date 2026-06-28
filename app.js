@@ -30,7 +30,7 @@ const State = {
     marginFree: 10000.00,
     positions: [],
     history: [],
-    currentLot: 1.00,
+    currentLot: 0.01,
     contractSize: 100, // XAUUSD standard contract size (100 oz per lot)
     spread: 0.05,       // Spread in USD (5 pips for XAUUSD)
     
@@ -60,16 +60,17 @@ const State = {
     
     // Customizable Chart Colors
     colors: JSON.parse(localStorage.getItem('mt5_chart_colors')) || {
+        bg: '#ffffff',
         foreground: '#6e717a',
         grid: '#e2e2e4',
-        barUp: '#2962ff',
-        barDown: '#ff1744',
-        bull: '#2962ff',
-        bear: '#ff1744',
+        barUp: '#375EEB',
+        barDown: '#D03A20',
+        bull: '#375EEB',
+        bear: '#DD5E56',
         chartLine: '#00e676',
         volumes: '#00b0ff',
-        bidLine: '#00A86B',
-        askLine: '#ff9f0a',
+        bidLine: '#52A49A',
+        askLine: '#DD5E56',
         stopLevels: '#d50000'
     }
 };
@@ -100,6 +101,7 @@ const resetDataBtn = document.getElementById('reset-data-btn');
 
 // Color customization inputs
 const colorInputs = {
+    bg: document.getElementById('color-bg'),
     foreground: document.getElementById('color-foreground'),
     grid: document.getElementById('color-grid'),
     barUp: document.getElementById('color-bar-up'),
@@ -302,7 +304,7 @@ function drawChartFrame() {
     ctx.direction = 'ltr';
     
     // Clear canvas
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = State.colors.bg || '#ffffff';
     ctx.fillRect(0, 0, State.width, State.height);
     
     const activeCandles = getActiveCandles();
@@ -339,7 +341,10 @@ function drawChartFrame() {
         priceMax = State.manualYMax;
     }
     
-    const RIGHT_PADDING = 25; // 25px gap between latest candle and price axis line
+    State.priceMin = priceMin;
+    State.priceMax = priceMax;
+    
+    const RIGHT_PADDING = 0; // No gap between latest candle and price axis line
     
     // Coordinate conversions
     function getX(candleIndex) {
@@ -402,12 +407,9 @@ function drawChartFrame() {
     ];
     
     targetXPositions.forEach((targetX, index) => {
-        // Find nearest candle index corresponding to targetX
+        // Find nearest candle index corresponding to targetX without clamping, so we can extrapolate past/future dates smoothly
         let idx = endIndex - Math.round((MARGIN_LEFT + chartWidth - targetX - candleSpacing / 2) / candleSpacing);
-        idx = Math.max(startIndex, Math.min(idx, endIndex));
-        
-        const candle = activeCandles[idx];
-        if (!candle) return;
+        const timeInfo = getCandleTimeAndDate(idx);
         
         // Cap drawX to be inside the horizontal line (leaving 1px safety padding from the vertical boundary)
         const drawX = Math.min(targetX, MARGIN_LEFT + chartWidth - 1);
@@ -429,7 +431,7 @@ function drawChartFrame() {
             ctx.font = '11px ' + FONT_STACK;
             ctx.fillStyle = State.colors.foreground;
             // Draw time label aligned to drawX
-            ctx.fillText(candle.timeLabel, drawX + 3, MARGIN_TOP + chartHeight + 14, 73);
+            ctx.fillText(timeInfo.timeLabel, drawX + 3, MARGIN_TOP + chartHeight + 14, 73);
         }
         ctx.restore();
     });
@@ -461,19 +463,21 @@ function drawChartFrame() {
                 ctx.fillRect(rectX, rectY, rectW, rectH);
             }
             
-            ctx.strokeStyle = d.borderColor;
-            ctx.lineWidth = d.thickness || 1.5;
-            ctx.globalAlpha = 1.0;
-            
-            if (d.dashStyle === 'dashed') {
-                ctx.setLineDash([6, 4]);
-            } else if (d.dashStyle === 'dotted') {
-                ctx.setLineDash([2, 2]);
-            } else {
-                ctx.setLineDash([]);
+            if (d.drawBorder === undefined ? true : d.drawBorder) {
+                ctx.strokeStyle = d.borderColor;
+                ctx.lineWidth = d.thickness || 1.5;
+                ctx.globalAlpha = 1.0;
+                
+                if (d.dashStyle === 'dashed') {
+                    ctx.setLineDash([6, 4]);
+                } else if (d.dashStyle === 'dotted') {
+                    ctx.setLineDash([2, 2]);
+                } else {
+                    ctx.setLineDash([]);
+                }
+                
+                ctx.strokeRect(rectX, rectY, rectW, rectH);
             }
-            
-            ctx.strokeRect(rectX, rectY, rectW, rectH);
             
             // Draw anchors if selected
             if (State.selectedDrawingIdx === index) {
@@ -553,6 +557,7 @@ function drawChartFrame() {
         const rectH = Math.abs(yEnd - yStart);
         
         const isFilled = document.getElementById('prop-fill-checkbox').checked;
+        const drawBorder = document.getElementById('prop-border-checkbox').checked;
         const borderColor = document.getElementById('prop-color-picker').value;
         const thickness = parseFloat(document.getElementById('prop-thickness-slider').value) || 2;
         const dashStyle = document.getElementById('prop-dash-select').value || 'solid';
@@ -576,7 +581,9 @@ function drawChartFrame() {
             ctx.globalAlpha = 1.0;
         }
         
-        ctx.strokeRect(rectX, rectY, rectW, rectH);
+        if (drawBorder) {
+            ctx.strokeRect(rectX, rectY, rectW, rectH);
+        }
         ctx.restore();
     }
     
@@ -879,9 +886,9 @@ function drawChartFrame() {
             }
         }
         
-        if (snapIdx !== -1 && activeCandles[snapIdx]) {
-            const candle = activeCandles[snapIdx];
-            crosshairValX.textContent = candle.timeLabel;
+        if (snapIdx !== -1) {
+            const info = getCandleTimeAndDate(snapIdx);
+            crosshairValX.textContent = `${info.dateLabel} ${info.timeLabel}`;
             crosshairValX.classList.remove('hidden');
             
             const textWidth = crosshairValX.offsetWidth;
@@ -1033,7 +1040,7 @@ function getCandleIndexFromX(x) {
     const totalCount = activeCandles.length;
     if (totalCount === 0) return -1;
     
-    const RIGHT_PADDING = 25;
+    const RIGHT_PADDING = 0;
     const candleSpacing = State.zoom;
     const chartWidth = State.width - MARGIN_RIGHT - MARGIN_LEFT;
     
@@ -1049,6 +1056,68 @@ function getCandleIndexFromX(x) {
     
     return Math.max(startIndex, Math.min(endIndex, candleIndex));
 }
+
+function getXGlobal(candleIndex) {
+    const activeCandles = getActiveCandles();
+    const totalCount = activeCandles.length;
+    
+    const RIGHT_PADDING = 0;
+    const candleSpacing = State.zoom;
+    const chartWidth = State.width - MARGIN_RIGHT - MARGIN_LEFT;
+    
+    let endIndex = totalCount - 1 - State.panOffset;
+    if (endIndex < 0) endIndex = 0;
+    
+    const offsetFromEnd = endIndex - candleIndex;
+    return MARGIN_LEFT + chartWidth - RIGHT_PADDING - (offsetFromEnd * candleSpacing) - (candleSpacing / 2);
+}
+
+function getYGlobal(price) {
+    const chartHeight = State.height - MARGIN_BOTTOM - MARGIN_TOP;
+    const pMin = State.priceMin !== undefined ? State.priceMin : State.manualYMin;
+    const pMax = State.priceMax !== undefined ? State.priceMax : State.manualYMax;
+    return MARGIN_TOP + chartHeight - ((price - pMin) / (pMax - pMin)) * chartHeight;
+}
+
+function getCandleTimeAndDate(index) {
+    const activeCandles = getActiveCandles();
+    const totalCount = activeCandles.length;
+    if (totalCount === 0) {
+        return { timeLabel: '--:--', dateLabel: '----/--/--' };
+    }
+    
+    let targetDate;
+    
+    if (index >= 0 && index < totalCount) {
+        const c = activeCandles[index];
+        targetDate = new Date(c.time);
+    } else if (index >= totalCount) {
+        const latest = activeCandles[totalCount - 1];
+        const latestDate = new Date(latest.time);
+        const diff = index - (totalCount - 1);
+        targetDate = new Date(latestDate.getTime() + diff * State.timeframeMinutes * 60 * 1000);
+    } else {
+        const first = activeCandles[0];
+        const firstDate = new Date(first.time);
+        const diff = 0 - index;
+        targetDate = new Date(firstDate.getTime() - diff * State.timeframeMinutes * 60 * 1000);
+    }
+    
+    // Format with the exact same months/hours/minutes layout function as the rest of the chart
+    const formattedLabel = formatTimeLabel(targetDate);
+    
+    const yyyy = targetDate.getFullYear();
+    const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(targetDate.getDate()).padStart(2, '0');
+    
+    return {
+        timeLabel: formattedLabel,
+        dateLabel: `${yyyy}/${mm}/${dd}`
+    };
+}
+
+let lastTapTime = 0;
+let isReplayTapPossible = false;
 
 function getPriceFromYGlobal(y) {
     const chartHeight = State.height - MARGIN_BOTTOM - MARGIN_TOP;
@@ -1077,6 +1146,19 @@ function handlePointerDown(e) {
     const x = clientX - rect.left;
     const y = clientY - rect.top;
     
+    // Custom double-tap detection for touch/mobile
+    const now = Date.now();
+    if (now - lastTapTime < 300) {
+        lastTapTime = 0; // reset
+        handleDoubleClick(e);
+        return;
+    }
+    lastTapTime = now;
+    
+    if (State.isReplaySelectMode) {
+        isReplayTapPossible = true;
+    }
+    
     // Technical drawing tool start check (Rectangle)
     if (State.isRectToolActive) {
         isDrawingRect = true;
@@ -1101,10 +1183,10 @@ function handlePointerDown(e) {
     if (State.selectedDrawingIdx !== -1) {
         const d = State.drawings[State.selectedDrawingIdx];
         if (d && !d.isLocked) {
-            const x1 = getX(d.startIdx);
-            const x2 = getX(d.endIdx);
-            const y1 = getY(d.startPrice);
-            const y2 = getY(d.endPrice);
+            const x1 = getXGlobal(d.startIdx);
+            const x2 = getXGlobal(d.endIdx);
+            const y1 = getYGlobal(d.startPrice);
+            const y2 = getYGlobal(d.endPrice);
             
             if (Math.hypot(x - x1, y - y1) < 15) {
                 isResizingDrawing = true;
@@ -1123,10 +1205,10 @@ function handlePointerDown(e) {
     let foundDrawingIdx = -1;
     for (let i = State.drawings.length - 1; i >= 0; i--) {
         const d = State.drawings[i];
-        const x1 = getX(d.startIdx);
-        const x2 = getX(d.endIdx);
-        const y1 = getY(d.startPrice);
-        const y2 = getY(d.endPrice);
+        const x1 = getXGlobal(d.startIdx);
+        const x2 = getXGlobal(d.endIdx);
+        const y1 = getYGlobal(d.startPrice);
+        const y2 = getYGlobal(d.endPrice);
         
         if (d.type === 'rectangle') {
             const minX = Math.min(x1, x2);
@@ -1178,20 +1260,7 @@ function handlePointerDown(e) {
         }
     }
 
-    // Replay mode start candle selection click
-    if (State.isReplaySelectMode) {
-        const clickedIdx = getCandleIndexFromX(x);
-        if (clickedIdx !== -1) {
-            State.replayIndex = clickedIdx;
-            State.isReplaySelectMode = false;
-            State.replayMode = true;
-            replayWidget.classList.remove('hidden');
-            syncReplayCandleData();
-            pauseReplay();
-            drawChart();
-        }
-        return;
-    }
+
     
     // Check if right axis is touched
     const chartWidth = State.width - MARGIN_RIGHT - MARGIN_LEFT;
@@ -1315,8 +1384,10 @@ function handlePointerMove(e) {
     // Replay mode hover selection line
     if (State.isReplaySelectMode) {
         State.replaySelectIndex = getCandleIndexFromX(x);
+        if (isDragging && (Math.abs(x - dragStartX) > 5 || Math.abs(y - dragStartY) > 5)) {
+            isReplayTapPossible = false;
+        }
         drawChart();
-        return;
     }
     
     if (State.isCrosshairActive) {
@@ -1327,6 +1398,7 @@ function handlePointerMove(e) {
     }
     
     const chartHeight = State.height - MARGIN_BOTTOM - MARGIN_TOP;
+    const chartWidth = State.width - MARGIN_RIGHT - MARGIN_LEFT;
     
     if (isPriceScaling) {
         const dy = y - dragStartY;
@@ -1345,7 +1417,10 @@ function handlePointerMove(e) {
         
         // Pan horizontally
         const candlesDiff = Math.round(dx / State.zoom);
-        State.panOffset = Math.max(0, initialPanOffset + candlesDiff);
+        const activeCandles = getActiveCandles();
+        const totalCount = activeCandles.length;
+        const maxVisible = Math.ceil(chartWidth / State.zoom);
+        State.panOffset = Math.max(-maxVisible, Math.min(totalCount + maxVisible, initialPanOffset + candlesDiff));
         
         // Pan vertically (switch to manual Y scale if dragged vertically)
         if (Math.abs(dy) > 5 && State.isAutoYScale) {
@@ -1369,12 +1444,27 @@ function handlePointerMove(e) {
 }
 
 function handlePointerUp() {
+    // Replay mode start candle selection click / tap
+    if (State.isReplaySelectMode) {
+        if (isReplayTapPossible) {
+            const clickedIdx = getCandleIndexFromX(dragStartX);
+            if (clickedIdx !== -1) {
+                startReplayAt(clickedIdx);
+            }
+        }
+        isReplayTapPossible = false;
+        isDragging = false;
+        drawChart();
+        return;
+    }
+
     if (isDrawingRect) {
         isDrawingRect = false;
         
         if (rectStartIdx !== rectCurrentIdx || Math.abs(rectStartPrice - rectCurrentPrice) > 0.01) {
             const borderColor = document.getElementById('prop-color-picker').value || '#007aff';
             const isFilled = document.getElementById('prop-fill-checkbox').checked;
+            const drawBorder = document.getElementById('prop-border-checkbox').checked;
             const thickness = parseFloat(document.getElementById('prop-thickness-slider').value) || 2;
             const dashStyle = document.getElementById('prop-dash-select').value || 'solid';
             const isBg = document.getElementById('prop-bg-checkbox').checked;
@@ -1388,6 +1478,7 @@ function handlePointerUp() {
                 borderColor: borderColor,
                 fillColor: borderColor,
                 isFilled: isFilled,
+                drawBorder: drawBorder,
                 fillOpacity: 0.3,
                 thickness: thickness,
                 dashStyle: dashStyle,
@@ -1449,17 +1540,21 @@ function handlePointerUp() {
 
 function handleDoubleClick(e) {
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const isTouch = e.touches && e.touches.length > 0;
+    const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+    const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+    
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
     
     // Check if clicked on any drawing to edit it
     let foundDrawingIdx = -1;
     for (let i = State.drawings.length - 1; i >= 0; i--) {
         const d = State.drawings[i];
-        const x1 = getX(d.startIdx);
-        const x2 = getX(d.endIdx);
-        const y1 = getY(d.startPrice);
-        const y2 = getY(d.endPrice);
+        const x1 = getXGlobal(d.startIdx);
+        const x2 = getXGlobal(d.endIdx);
+        const y1 = getYGlobal(d.startPrice);
+        const y2 = getYGlobal(d.endPrice);
         
         if (d.type === 'rectangle') {
             const minX = Math.min(x1, x2);
@@ -1643,6 +1738,30 @@ function syncReplayCandleData() {
     replayCandleCountEl.textContent = `الشموع: ${State.replayIndex + 1} / ${State.candles.length}`;
 }
 
+function startReplayAt(clickedIdx) {
+    const prevTotal = State.candles.length;
+    const newTotal = clickedIdx + 1;
+    const diff = prevTotal - newTotal;
+    
+    State.replayIndex = clickedIdx;
+    State.isReplaySelectMode = false;
+    State.replayMode = true;
+    
+    // Adjust panOffset to keep candles in the same position on screen
+    State.panOffset = State.panOffset - diff;
+    
+    const replayWidget = document.getElementById('replay-widget');
+    if (replayWidget) replayWidget.classList.remove('hidden');
+    
+    syncReplayCandleData();
+    pauseReplay();
+    drawChart();
+}
+
+function keepReplayIndexVisible() {
+    // Keep it free: do not automatically scroll the screen during replay.
+}
+
 function playReplay() {
     if (State.replayPlaying) return;
     State.replayPlaying = true;
@@ -1654,7 +1773,7 @@ function playReplay() {
         if (State.replayIndex < State.candles.length - 1) {
             State.replayIndex++;
             syncReplayCandleData();
-            State.panOffset = 0;
+            keepReplayIndexVisible();
             drawChart();
         } else {
             pauseReplay();
@@ -1693,7 +1812,7 @@ function stepReplayForward() {
     if (State.replayIndex < State.candles.length - 1) {
         State.replayIndex++;
         syncReplayCandleData();
-        State.panOffset = 0;
+        keepReplayIndexVisible();
         drawChart();
     }
 }
@@ -1729,9 +1848,17 @@ const replayCloseBtn = document.getElementById('replay-close');
 if (replayCloseBtn) {
     replayCloseBtn.addEventListener('click', () => {
         // Exit replay mode completely
+        const prevTotal = State.replayIndex + 1;
+        const newTotal = State.candles.length;
+        const diff = prevTotal - newTotal;
+        
         State.replayMode = false;
         State.isReplaySelectMode = false;
         State.replaySelectIndex = -1;
+        
+        // Adjust panOffset to keep candles in the same position on screen
+        State.panOffset = State.panOffset - diff;
+        
         replayWidget.classList.add('hidden');
         pauseReplay();
         
@@ -1971,6 +2098,7 @@ function switchPage(targetPageId) {
         }
     }
     
+
     if (targetPageId === 'page-chart') {
         setTimeout(resizeCanvas, 50);
     }
@@ -2138,6 +2266,9 @@ const propBgCheckbox = document.getElementById('prop-bg-checkbox');
 
 let currentEditingDrawingIdx = -1;
 
+const propBorderRow = document.getElementById('prop-border-row');
+const propBorderCheckbox = document.getElementById('prop-border-checkbox');
+
 function openPropertiesModal(idx) {
     const d = State.drawings[idx];
     if (!d) return;
@@ -2151,20 +2282,23 @@ function openPropertiesModal(idx) {
     if (d.type === 'rectangle') {
         propFillRow.style.display = 'flex';
         propFillCheckbox.checked = !!d.isFilled;
+        if (propBorderRow) propBorderRow.style.display = 'flex';
+        if (propBorderCheckbox) propBorderCheckbox.checked = d.drawBorder === undefined ? true : d.drawBorder;
     } else {
         propFillRow.style.display = 'none';
+        if (propBorderRow) propBorderRow.style.display = 'none';
     }
     
     propPrice1Input.value = d.startPrice.toFixed(3);
     propPrice2Input.value = d.endPrice.toFixed(3);
     
-    const candle1 = State.candles[d.startIdx] || { timeLabel: '--:--', dateLabel: '6/26/26' };
-    const candle2 = State.candles[d.endIdx] || { timeLabel: '--:--', dateLabel: '6/26/26' };
+    const candle1 = getCandleTimeAndDate(d.startIdx);
+    const candle2 = getCandleTimeAndDate(d.endIdx);
     
     propTime1Input.value = candle1.timeLabel || '';
-    propDate1Input.value = candle1.dateLabel || '6/26/26';
+    propDate1Input.value = candle1.dateLabel || '';
     propTime2Input.value = candle2.timeLabel || '';
-    propDate2Input.value = candle2.dateLabel || '6/26/26';
+    propDate2Input.value = candle2.dateLabel || '';
     
     propColorPicker.value = d.borderColor || '#007aff';
     propThicknessSlider.value = d.thickness || 2;
@@ -2195,6 +2329,7 @@ document.getElementById('prop-save-btn').addEventListener('click', () => {
             
             if (d.type === 'rectangle') {
                 d.isFilled = propFillCheckbox.checked;
+                d.drawBorder = propBorderCheckbox.checked;
             }
             
             localStorage.setItem('mt5_drawings', JSON.stringify(State.drawings));
@@ -2217,19 +2352,23 @@ document.getElementById('prop-delete-btn').addEventListener('click', () => {
 // --- SETTINGS COLOR PRESETS & DARK THEME LOGIC ---
 const presets = {
     default: {
+        bg: '#ffffff',
         foreground: '#6e717a',
         grid: '#e2e2e4',
-        barUp: '#2962ff',
-        barDown: '#ff1744',
-        bull: '#2962ff',
-        bear: '#ff1744',
+        barUp: '#375EEB',
+        barDown: '#D03A20',
+        bull: '#375EEB',
+        bear: '#DD5E56',
         chartLine: '#00e676',
         volumes: '#00b0ff',
-        bidLine: '#00A86B',
-        askLine: '#ff9f0a',
-        stopLevels: '#d50000'
+        bidLine: '#52A49A',
+        askLine: '#DD5E56',
+        stopLevels: '#d50000',
+        navIcons: '#ffffff',
+        navActive: '#2962ff'
     },
     greenBlack: {
+        bg: '#000000',
         foreground: '#ffffff',
         grid: '#111111',
         barUp: '#00ff00',
@@ -2240,9 +2379,12 @@ const presets = {
         volumes: '#00ff00',
         bidLine: '#00ff00',
         askLine: '#ff9f0a',
-        stopLevels: '#ff0000'
+        stopLevels: '#ff0000',
+        navIcons: '#ffffff',
+        navActive: '#00ff00'
     },
     blackWhite: {
+        bg: '#ffffff',
         foreground: '#000000',
         grid: '#e5e5ea',
         barUp: '#000000',
@@ -2253,9 +2395,12 @@ const presets = {
         volumes: '#8e8e93',
         bidLine: '#000000',
         askLine: '#ff9f0a',
-        stopLevels: '#000000'
+        stopLevels: '#000000',
+        navIcons: '#000000',
+        navActive: '#000000'
     },
     tv: {
+        bg: '#ffffff',
         foreground: '#787b86',
         grid: '#f0f3fa',
         barUp: '#089981',
@@ -2266,7 +2411,9 @@ const presets = {
         volumes: '#26a69a',
         bidLine: '#089981',
         askLine: '#ff9f0a',
-        stopLevels: '#ff0000'
+        stopLevels: '#ff0000',
+        navIcons: '#ffffff',
+        navActive: '#2962ff'
     }
 };
 
@@ -2277,10 +2424,11 @@ function applyPreset(presetKey) {
     // Copy colors
     State.colors = { ...p };
     
-    // Auto-adjust default grid colors if dark mode is active
+    // Auto-adjust default grid/bg colors if dark mode is active
     if (State.isDarkMode && presetKey === 'default') {
         State.colors.grid = '#2c2c2e';
         State.colors.foreground = '#a2a2aa';
+        State.colors.bg = '#000000';
     }
     
     localStorage.setItem('mt5_chart_colors', JSON.stringify(State.colors));
@@ -2330,16 +2478,18 @@ function setDarkMode(enabled) {
     
     if (enabled) {
         document.body.classList.add('dark-theme');
-        if (State.colors.grid === '#e2e2e4') {
+        if (State.colors.grid === '#e2e2e4' || State.colors.bg === '#ffffff') {
             State.colors.grid = '#2c2c2e';
             State.colors.foreground = '#a2a2aa';
+            State.colors.bg = '#000000';
             localStorage.setItem('mt5_chart_colors', JSON.stringify(State.colors));
         }
     } else {
         document.body.classList.remove('dark-theme');
-        if (State.colors.grid === '#2c2c2e') {
+        if (State.colors.grid === '#2c2c2e' || State.colors.bg === '#000000') {
             State.colors.grid = '#e2e2e4';
             State.colors.foreground = '#6e717a';
+            State.colors.bg = '#ffffff';
             localStorage.setItem('mt5_chart_colors', JSON.stringify(State.colors));
         }
     }
@@ -2413,14 +2563,14 @@ resetDataBtn.addEventListener('click', () => {
     State.colors = {
         foreground: '#6e717a',
         grid: '#e2e2e4',
-        barUp: '#2962ff',
-        barDown: '#ff1744',
-        bull: '#2962ff',
-        bear: '#ff1744',
+        barUp: '#375EEB',
+        barDown: '#D03A20',
+        bull: '#375EEB',
+        bear: '#DD5E56',
         chartLine: '#00e676',
         volumes: '#00b0ff',
-        bidLine: '#00A86B',
-        askLine: '#ff9f0a',
+        bidLine: '#52A49A',
+        askLine: '#DD5E56',
         stopLevels: '#d50000'
     };
     
@@ -2670,6 +2820,25 @@ window.addEventListener('load', () => {
 });
 
 function finalizeInit() {
+    // Migrate default colors to new specified color defaults if they still have the old ones
+    if (State.colors && (State.colors.barUp === '#2962ff' || State.colors.barUp === '#2962FF')) {
+        State.colors.barUp = '#375EEB';
+        State.colors.barDown = '#D03A20';
+        State.colors.bull = '#375EEB';
+        State.colors.bear = '#DD5E56';
+        State.colors.bidLine = '#52A49A';
+        State.colors.askLine = '#DD5E56';
+        localStorage.setItem('mt5_chart_colors', JSON.stringify(State.colors));
+        
+        // Update color inputs on screen
+        if (typeof colorInputs !== 'undefined') {
+            Object.keys(colorInputs).forEach(key => {
+                const input = colorInputs[key];
+                if (input) input.value = State.colors[key];
+            });
+        }
+    }
+
     resizeCanvas();
     updateTradingPanelUI();
     updatePositionsProfit();
