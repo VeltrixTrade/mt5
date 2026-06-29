@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mt5-simulator-v2';
+const CACHE_NAME = 'mt5-simulator-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -35,9 +35,26 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  // Only handle GET requests for caching
+  if (e.request.method !== 'GET') {
+    return;
+  }
+  
   e.respondWith(
-    caches.match(e.request).then((cachedResponse) => {
-      return cachedResponse || fetch(e.request);
-    })
+    fetch(e.request)
+      .then((response) => {
+        // If it's a valid response, cache it
+        if (response && response.status === 200 && response.type === 'basic') {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(e.request, responseToCache);
+          });
+        }
+        return response;
+      })
+      .catch(() => {
+        // If network request fails (offline), load from cache
+        return caches.match(e.request);
+      })
   );
 });
