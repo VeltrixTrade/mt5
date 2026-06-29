@@ -642,30 +642,39 @@ function drawChartFrame() {
         
         const isBullish = candle.close >= candle.open;
         const strokeColor = isBullish ? State.colors.barUp : State.colors.barDown;
-        const fillColor = isBullish ? State.colors.bull : State.colors.bear;
+        let fillColor = isBullish ? State.colors.bull : State.colors.bear;
         
+        // If the candle is narrow (width <= 4), draw it as solid (fillColor = strokeColor)
+        // to prevent hollow rendering gaps or split borders that make it look half-missing.
+        if (candleWidth <= 4) {
+            fillColor = strokeColor;
+        } else if (fillColor === State.colors.bg || (State.colors.bg === '#ffffff' && (fillColor === '#ffffff' || fillColor === '#fff'))) {
+            // Keep visibility check for hollow candles on matching backgrounds
+            fillColor = strokeColor;
+        }
+
         ctx.strokeStyle = strokeColor;
         ctx.fillStyle = fillColor;
         
-        // 1. Calculate pixel-aligned coordinates for the body (crisp integer boundaries)
-        const xStart = Math.floor(rawX - candleWidth / 2);
+        // 1. Calculate mathematically aligned coordinates centered exactly on rawX
+        const wickX = Math.floor(rawX) + 0.5;
+        const xStart = wickX - candleWidth / 2;
         const xEnd = xStart + candleWidth;
         const bodyHeight = Math.max(1, Math.round(Math.abs(yClose - yOpen)));
         const bodyY = Math.round(Math.min(yOpen, yClose));
         
-        // 2. Draw wick (crisp 0.5px thick vertical line centered exactly on half-pixel boundary)
-        const wickX = Math.floor(xStart + candleWidth / 2) + 0.5;
+        const roundedYOpen = Math.round(yOpen);
+        const roundedYClose = Math.round(yClose);
+        const flatHeight = Math.abs(roundedYClose - roundedYOpen);
+
+        // 2. Always draw the wick as an ultra-thin line (strictly 0.5px)
         ctx.lineWidth = 0.5;
         ctx.beginPath();
         ctx.moveTo(wickX, Math.round(yHigh));
         ctx.lineTo(wickX, Math.round(yLow));
         ctx.stroke();
         
-        // 3. Draw body (crisp solid rectangle)
-        const roundedYOpen = Math.round(yOpen);
-        const roundedYClose = Math.round(yClose);
-        const flatHeight = Math.abs(roundedYClose - roundedYOpen);
-        
+        // 3. Draw the body on top
         if (flatHeight < 1) {
             // Doji / flat candle line
             ctx.lineWidth = 1.0;
@@ -674,11 +683,14 @@ function drawChartFrame() {
             ctx.lineTo(xEnd, bodyY + 0.5);
             ctx.stroke();
         } else {
+            // Draw filled body (always centered exactly on wickX)
             ctx.fillRect(xStart, bodyY, candleWidth, bodyHeight);
             
-            // Draw body border using crisp 1px line width
-            ctx.lineWidth = 1.0;
-            ctx.strokeRect(xStart + 0.5, bodyY + 0.5, candleWidth - 1, bodyHeight - 1);
+            // Draw body border ONLY if the candle is wide enough (candleWidth > 4)
+            if (candleWidth > 4) {
+                ctx.lineWidth = 1.0;
+                ctx.strokeRect(xStart + 0.5, bodyY + 0.5, candleWidth - 1, bodyHeight - 1);
+            }
         }
     });
     
