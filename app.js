@@ -746,7 +746,7 @@ function drawChartFrame() {
         ctx.save();
         ctx.globalAlpha = 0.7 * pos.opacity; // Opacity 0.7 for dashed line
         ctx.strokeStyle = strokeColor;
-        ctx.setLineDash([5, 5]); // Dash pattern: 5px 5px
+        ctx.setLineDash([4, 4]); // Dash pattern: 4px dash, 4px gap
         ctx.lineWidth = 0.5;      // Stroke width: 0.5px
         
         const boxX = MARGIN_LEFT + chartWidth + 2;
@@ -768,17 +768,28 @@ function drawChartFrame() {
         ctx.letterSpacing = 'normal'; // Standard spacing
         
         const lotText = pos.lot % 1 === 0 ? pos.lot.toFixed(2) : pos.lot.toString();
-        const textContent = `${pos.type} ${lotText}`;
+        const typeText = pos.type; // "BUY" or "SELL"
         
         // Exact pixel scaling requested by the user
-        const targetWidth = pos.type === 'BUY' ? 53 : 60; 
-        const naturalWidth = ctx.measureText(textContent).width;
+        const typeWidth = typeText === 'BUY' ? 23 : 27; // BUY alone is 23px, SELL alone is 27px
+        const lotWidth = typeText === 'BUY' ? 25 : 24;  // BUY lot width is 25px (23 + 5 gap + 25 = 53px total), SELL lot width is 24px (27 + 5 gap + 24 = 56px total)
         
+        // Draw type text (BUY or SELL)
+        const typeNaturalWidth = ctx.measureText(typeText).width;
         ctx.save();
         ctx.translate(5, y - 2); // 5px left margin, 2px above line
-        ctx.scale(targetWidth / naturalWidth, 1); // Scale horizontally to force exact pixel width
-        ctx.fillText(textContent, 0, 0);
+        ctx.scale(typeWidth / typeNaturalWidth, 1); // Scale horizontally to force exact pixel width for the word
+        ctx.fillText(typeText, 0, 0);
         ctx.restore();
+        
+        // Draw lot size text (e.g., "0.08") next to it with exactly 5px gap
+        const lotNaturalWidth = ctx.measureText(lotText).width;
+        ctx.save();
+        ctx.translate(5 + typeWidth + 5, y - 2); // Placed exactly after the word plus a 5px gap
+        ctx.scale(lotWidth / lotNaturalWidth, 1); // Scale horizontally to force exact pixel width for the lot
+        ctx.fillText(lotText, 0, 0);
+        ctx.restore();
+        
         ctx.restore();
         
         // 3. Draw Price Box stuck to right axis
@@ -815,7 +826,7 @@ function drawChartFrame() {
     if (askY >= MARGIN_TOP && askY <= MARGIN_TOP + chartHeight) {
         ctx.save();
         ctx.strokeStyle = State.colors.askLine;
-        ctx.setLineDash([2, 3]);
+        ctx.setLineDash([2, 2]);
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(MARGIN_LEFT, askY);
@@ -844,7 +855,7 @@ function drawChartFrame() {
     if (bidY >= MARGIN_TOP && bidY <= MARGIN_TOP + chartHeight) {
         ctx.save();
         ctx.strokeStyle = State.colors.bidLine;
-        ctx.setLineDash([2, 3]);
+        ctx.setLineDash([2, 2]);
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(MARGIN_LEFT, bidY);
