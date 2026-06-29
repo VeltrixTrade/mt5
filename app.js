@@ -746,7 +746,7 @@ function drawChartFrame() {
         ctx.font = '400 12px "Helvetica Neue", Helvetica, Arial, sans-serif';
         const priceText = pos.openPrice.toFixed(3);
         
-        const boxWidth = 58; // Width: 58px
+        const boxWidth = 62; // Width: 62px (matching Bid/Ask price box width)
         const boxHeight = 14; // Height: 14px
         const boxY = y - boxHeight / 2; // Center vertically
         
@@ -759,11 +759,12 @@ function drawChartFrame() {
         ctx.lineWidth = 0.75;
         ctx.strokeRect(boxX + 0.5, boxY + 0.5, boxWidth - 1, boxHeight - 1);
         
-        // Draw price text (limited to 50px width max)
+        // Draw price text (limited to 56px width max)
         ctx.fillStyle = textColor;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(priceText, boxX + boxWidth / 2, y + 0.5, 50);
+        ctx.letterSpacing = '2.0px';
+        ctx.fillText(priceText, boxX + boxWidth / 2, y + 0.5, 56);
         ctx.restore();
     });
     
@@ -797,8 +798,8 @@ function drawChartFrame() {
         ctx.font = '400 12px ' + FONT_STACK;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.letterSpacing = '1.7px';
-        ctx.fillText(State.currentAsk.toFixed(3), boxX + boxWidth / 2, askY, 55);
+        ctx.letterSpacing = '2.0px';
+        ctx.fillText(State.currentAsk.toFixed(3), boxX + boxWidth / 2, askY, 56);
         ctx.restore();
     }
 
@@ -830,8 +831,8 @@ function drawChartFrame() {
         ctx.font = '400 12px ' + FONT_STACK;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.letterSpacing = '1.7px';
-        ctx.fillText(State.currentBid.toFixed(3), boxX + boxWidth / 2, bidY, 55);
+        ctx.letterSpacing = '2.0px';
+        ctx.fillText(State.currentBid.toFixed(3), boxX + boxWidth / 2, bidY, 56);
         ctx.restore();
     }
     
