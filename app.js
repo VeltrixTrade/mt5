@@ -139,8 +139,8 @@ const MARGIN_BOTTOM = 18; // Space for time axis (98px from bottom of screen: 18
 const MARGIN_TOP = 1;     // Space at top (91px from top of screen)
 const MARGIN_LEFT = 0;    // Starts at 0 to make chart width exactly 322px (390 - 68)
 
-// Helvetica Neue font family stack
-const FONT_STACK = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+// Modern system font stack with San Francisco, SF Pro Display, and SFUI-Regular (Apple system fonts)
+const FONT_STACK = "'San Francisco', 'SF Pro Display', '.SFUI-Regular', 'SFUI-Regular', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 // --- TIME ROUNDING UTILITY ---
 function getRoundedStartTime(timeframeMinutes) {
@@ -400,7 +400,7 @@ function drawChartFrame() {
     ctx.strokeStyle = State.colors.grid;
     ctx.lineWidth = 0.5;
     ctx.setLineDash([1, 2]); // dotted lines
-    ctx.font = '12px ' + FONT_STACK;
+    ctx.font = '400 12px ' + FONT_STACK;
     ctx.fillStyle = State.colors.foreground;
     
     // Price grid lines: 15 labels, spaced to fit exactly 99px top offset and 135px bottom offset.
@@ -762,7 +762,7 @@ function drawChartFrame() {
         ctx.save();
         ctx.globalAlpha = pos.opacity;
         ctx.fillStyle = textColor;
-        ctx.font = '400 12px "Helvetica Neue", Helvetica, Arial, sans-serif'; // Font size 12px to achieve exactly 9px cap-height (visible height)
+        ctx.font = '400 12px ' + FONT_STACK; // Font size 12px with 400 weight to achieve exactly 9px cap-height (visible height)
         ctx.textAlign = 'left';
         ctx.textBaseline = 'bottom';
         ctx.letterSpacing = 'normal'; // Standard spacing
@@ -785,7 +785,7 @@ function drawChartFrame() {
         ctx.save();
         ctx.globalAlpha = pos.opacity;
         
-        ctx.font = '400 12px "Helvetica Neue", Helvetica, Arial, sans-serif';
+        ctx.font = '400 12px ' + FONT_STACK;
         const priceText = pos.openPrice.toFixed(3);
         
         const boxWidth = 64; // Width: 64px (matching Bid/Ask price box width)
