@@ -646,7 +646,7 @@ function drawChartFrame() {
         
         ctx.strokeStyle = strokeColor;
         ctx.fillStyle = fillColor;
-        ctx.lineWidth = 1.0;
+        ctx.lineWidth = 0.5;
         
         // Draw wick
         ctx.beginPath();
