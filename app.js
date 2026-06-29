@@ -400,7 +400,7 @@ function drawChartFrame() {
     ctx.strokeStyle = State.colors.grid;
     ctx.lineWidth = 0.5;
     ctx.setLineDash([1, 2]); // dotted lines
-    ctx.font = '400 12px ' + FONT_STACK;
+    ctx.font = '450 12px ' + FONT_STACK;
     ctx.fillStyle = State.colors.foreground;
     
     // Price grid lines: 15 labels, spaced to fit exactly 99px top offset and 135px bottom offset.
@@ -762,7 +762,7 @@ function drawChartFrame() {
         ctx.save();
         ctx.globalAlpha = pos.opacity;
         ctx.fillStyle = textColor;
-        ctx.font = '400 12px ' + FONT_STACK; // Font size 12px with 400 weight to achieve exactly 9px cap-height (visible height)
+        ctx.font = '450 12px ' + FONT_STACK; // Font size 12px with 450 weight to achieve exactly 9px cap-height (visible height)
         ctx.textAlign = 'left';
         ctx.textBaseline = 'bottom';
         ctx.letterSpacing = 'normal'; // Standard spacing
@@ -785,7 +785,7 @@ function drawChartFrame() {
         ctx.save();
         ctx.globalAlpha = pos.opacity;
         
-        ctx.font = '400 12px ' + FONT_STACK;
+        ctx.font = '450 12px ' + FONT_STACK;
         const priceText = pos.openPrice.toFixed(3);
         
         const boxWidth = 64; // Width: 64px (matching Bid/Ask price box width)
@@ -833,7 +833,7 @@ function drawChartFrame() {
         ctx.fillStyle = State.colors.askLine;
         ctx.fillRect(boxX, boxY, boxWidth, boxHeight);        // Price text
         ctx.fillStyle = '#ffffff';
-        ctx.font = '400 12px ' + FONT_STACK;
+        ctx.font = '450 12px ' + FONT_STACK;
         ctx.textBaseline = 'middle';
         fillTextWithSpacing(ctx, State.currentAsk.toFixed(3), boxX + boxWidth / 2, askY, 2.0, 'center', 56);
         ctx.restore();
@@ -864,7 +864,7 @@ function drawChartFrame() {
         
         // Price text
         ctx.fillStyle = '#ffffff';
-        ctx.font = '400 12px ' + FONT_STACK;
+        ctx.font = '450 12px ' + FONT_STACK;
         ctx.textBaseline = 'middle';
         fillTextWithSpacing(ctx, State.currentBid.toFixed(3), boxX + boxWidth / 2, bidY, 2.0, 'center', 56);
         ctx.restore();
