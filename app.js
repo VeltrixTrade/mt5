@@ -755,7 +755,7 @@ function drawChartFrame() {
         ctx.font = '400 12px "Helvetica Neue", Helvetica, Arial, sans-serif';
         const priceText = pos.openPrice.toFixed(3);
         
-        const boxWidth = 62; // Width: 62px (matching Bid/Ask price box width)
+        const boxWidth = 64; // Width: 64px (matching Bid/Ask price box width)
         const boxHeight = 14; // Height: 14px
         const boxY = y - boxHeight / 2; // Center vertically
         
@@ -763,9 +763,9 @@ function drawChartFrame() {
         ctx.fillStyle = boxBgColor;
         ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
         
-        // Draw border: 1px Solid (lineWidth 0.75 for softer/thinner look)
+        // Draw border: 1px Solid (lineWidth 0.5 for softer/thinner look)
         ctx.strokeStyle = textColor;
-        ctx.lineWidth = 0.75;
+        ctx.lineWidth = 0.5;
         ctx.strokeRect(boxX + 0.5, boxY + 0.5, boxWidth - 1, boxHeight - 1);
         
         // Draw price text (limited to 56px width max)
@@ -793,7 +793,7 @@ function drawChartFrame() {
         ctx.restore();
         
         ctx.save();
-        const boxWidth = 62;
+        const boxWidth = 64;
         const boxHeight = 14;
         const boxX = MARGIN_LEFT + chartWidth + 2;
         const boxY = askY - boxHeight / 2;
@@ -826,7 +826,7 @@ function drawChartFrame() {
         ctx.restore();
         
         ctx.save();
-        const boxWidth = 62;
+        const boxWidth = 64;
         const boxHeight = 14;
         const boxX = MARGIN_LEFT + chartWidth + 2;
         const boxY = bidY - boxHeight / 2;
@@ -2883,9 +2883,30 @@ function finalizeInit() {
     updateTradingPanelUI();
     updatePositionsProfit();
     
+    // Force clean old service worker cache on first load of version 3
+    if (!localStorage.getItem('sw_migrated_v3')) {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                for (let registration of registrations) {
+                    registration.unregister();
+                }
+            });
+        }
+        if ('caches' in window) {
+            caches.keys().then(names => {
+                for (let name of names) caches.delete(name);
+            });
+        }
+        localStorage.setItem('sw_migrated_v3', 'true');
+        setTimeout(() => {
+            window.location.reload(true); // Force reload to fetch everything fresh
+        }, 200);
+        return;
+    }
+
     // Register PWA Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js')
+        navigator.serviceWorker.register('./sw.js?v=3')
             .then(() => console.log('PWA Service Worker Registered'))
             .catch(err => console.log('Service Worker Registration Failed:', err));
     }
