@@ -736,8 +736,16 @@ function drawChartFrame() {
         
         const lotText = pos.lot % 1 === 0 ? pos.lot.toFixed(2) : pos.lot.toString();
         const textContent = `${pos.type} ${lotText}`;
-        const maxTextWidth = pos.type === 'BUY' ? 46 : 50; // Max width: 46px for BUY 0.08, 50px for SELL
-        ctx.fillText(textContent, 5, y - 2, maxTextWidth); // 5px left margin, 2px above line
+        
+        // Exact pixel scaling requested by the user
+        const targetWidth = pos.type === 'BUY' ? 53 : 60; 
+        const naturalWidth = ctx.measureText(textContent).width;
+        
+        ctx.save();
+        ctx.translate(5, y - 2); // 5px left margin, 2px above line
+        ctx.scale(targetWidth / naturalWidth, 1); // Scale horizontally to force exact pixel width
+        ctx.fillText(textContent, 0, 0);
+        ctx.restore();
         ctx.restore();
         
         // 3. Draw Price Box stuck to right axis
