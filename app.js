@@ -392,9 +392,9 @@ function drawChartFrame() {
         
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.letterSpacing = '1.7px';
+        ctx.letterSpacing = '2.0px';
         ctx.fillStyle = State.colors.foreground;
-        ctx.fillText(gridPrice.toFixed(3), MARGIN_LEFT + chartWidth + 6, y, 55);
+        ctx.fillText(gridPrice.toFixed(3), MARGIN_LEFT + chartWidth + 6, y, 56);
         ctx.restore();
     }
     
