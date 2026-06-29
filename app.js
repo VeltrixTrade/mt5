@@ -729,7 +729,7 @@ function drawChartFrame() {
         ctx.save();
         ctx.globalAlpha = pos.opacity;
         ctx.fillStyle = textColor;
-        ctx.font = '400 9px "Helvetica Neue", Helvetica, Arial, sans-serif'; // Font size: 9px (Height: 9px)
+        ctx.font = '400 12px "Helvetica Neue", Helvetica, Arial, sans-serif'; // Font size 12px to achieve exactly 9px cap-height (visible height)
         ctx.textAlign = 'left';
         ctx.textBaseline = 'bottom';
         ctx.letterSpacing = 'normal'; // Standard spacing
