@@ -287,6 +287,41 @@ function getPriceRange(visibleCandles) {
     };
 }
 
+function fillTextWithSpacing(ctx, text, x, y, spacing, align = 'left', maxWidth = null) {
+    ctx.save();
+    
+    // Set text direction to LTR to ensure numbers don't reverse
+    ctx.direction = 'ltr';
+    
+    const chars = text.split('');
+    const charWidths = chars.map(c => ctx.measureText(c).width);
+    const naturalWidth = charWidths.reduce((a, b) => a + b, 0) + (chars.length - 1) * spacing;
+    
+    // Apply maxWidth scaling factor if text is too wide
+    let scaleX = 1.0;
+    if (maxWidth !== null && naturalWidth > maxWidth) {
+        scaleX = maxWidth / naturalWidth;
+    }
+    
+    let startX = x;
+    if (align === 'center') {
+        startX = x - (naturalWidth * scaleX) / 2;
+    } else if (align === 'right') {
+        startX = x - (naturalWidth * scaleX);
+    }
+    
+    ctx.translate(startX, y);
+    ctx.scale(scaleX, 1);
+    
+    let currentX = 0;
+    chars.forEach((c, index) => {
+        ctx.fillText(c, currentX, 0);
+        currentX += charWidths[index] + spacing;
+    });
+    
+    ctx.restore();
+}
+
 let isRedrawPending = false;
 function drawChart() {
     if (isRedrawPending) return;
@@ -390,11 +425,9 @@ function drawChartFrame() {
         ctx.lineTo(MARGIN_LEFT + chartWidth + 3, y);
         ctx.stroke();
         
-        ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.letterSpacing = '2.0px';
         ctx.fillStyle = State.colors.foreground;
-        ctx.fillText(gridPrice.toFixed(3), MARGIN_LEFT + chartWidth + 6, y, 56);
+        fillTextWithSpacing(ctx, gridPrice.toFixed(3), MARGIN_LEFT + chartWidth + 6, y, 2.0, 'left', 56);
         ctx.restore();
     }
     
@@ -770,10 +803,8 @@ function drawChartFrame() {
         
         // Draw price text (limited to 56px width max)
         ctx.fillStyle = textColor;
-        ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.letterSpacing = '2.0px';
-        ctx.fillText(priceText, boxX + boxWidth / 2, y + 0.5, 56);
+        fillTextWithSpacing(ctx, priceText, boxX + boxWidth / 2, y + 0.5, 2.0, 'center', 56);
         ctx.restore();
     });
     
@@ -800,15 +831,11 @@ function drawChartFrame() {
         
         // Draw ask price box: solid background
         ctx.fillStyle = State.colors.askLine;
-        ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-        
-        // Price text
+        ctx.fillRect(boxX, boxY, boxWidth, boxHeight);        // Price text
         ctx.fillStyle = '#ffffff';
         ctx.font = '400 12px ' + FONT_STACK;
-        ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.letterSpacing = '2.0px';
-        ctx.fillText(State.currentAsk.toFixed(3), boxX + boxWidth / 2, askY, 56);
+        fillTextWithSpacing(ctx, State.currentAsk.toFixed(3), boxX + boxWidth / 2, askY, 2.0, 'center', 56);
         ctx.restore();
     }
 
@@ -838,10 +865,8 @@ function drawChartFrame() {
         // Price text
         ctx.fillStyle = '#ffffff';
         ctx.font = '400 12px ' + FONT_STACK;
-        ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.letterSpacing = '2.0px';
-        ctx.fillText(State.currentBid.toFixed(3), boxX + boxWidth / 2, bidY, 56);
+        fillTextWithSpacing(ctx, State.currentBid.toFixed(3), boxX + boxWidth / 2, bidY, 2.0, 'center', 56);
         ctx.restore();
     }
     
