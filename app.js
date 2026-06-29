@@ -714,7 +714,7 @@ function drawChartFrame() {
         ctx.globalAlpha = 0.7 * pos.opacity; // Opacity 0.7 for dashed line
         ctx.strokeStyle = strokeColor;
         ctx.setLineDash([5, 5]); // Dash pattern: 5px 5px
-        ctx.lineWidth = 1.0;      // Stroke width: 1px
+        ctx.lineWidth = 0.5;      // Stroke width: 0.5px
         
         const boxX = MARGIN_LEFT + chartWidth + 2;
         
@@ -729,14 +729,15 @@ function drawChartFrame() {
         ctx.save();
         ctx.globalAlpha = pos.opacity;
         ctx.fillStyle = textColor;
-        ctx.font = '400 12px "Helvetica Neue", Helvetica, Arial, sans-serif';
+        ctx.font = '400 9px "Helvetica Neue", Helvetica, Arial, sans-serif'; // Font size: 9px (Height: 9px)
         ctx.textAlign = 'left';
         ctx.textBaseline = 'bottom';
         ctx.letterSpacing = 'normal'; // Standard spacing
         
-        const lotText = pos.lot % 1 === 0 ? pos.lot.toFixed(0) : pos.lot.toString();
+        const lotText = pos.lot % 1 === 0 ? pos.lot.toFixed(2) : pos.lot.toString();
         const textContent = `${pos.type} ${lotText}`;
-        ctx.fillText(textContent, 5, y - 2); // 5px left margin, 2px above line
+        const maxTextWidth = pos.type === 'BUY' ? 46 : 50; // Max width: 46px for BUY 0.08, 50px for SELL
+        ctx.fillText(textContent, 5, y - 2, maxTextWidth); // 5px left margin, 2px above line
         ctx.restore();
         
         // 3. Draw Price Box stuck to right axis
