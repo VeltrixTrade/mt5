@@ -148,6 +148,16 @@ button, input, select, textarea {
     display: block;
 }
 
+#header-tf-overlay {
+    position: absolute;
+    left: 88.89%;
+    top: 22.73%;
+    width: 7.69%;
+    height: 54.55%;
+    z-index: 5;
+    pointer-events: none;
+}
+
 .header-overlay-btn {
     position: absolute;
     top: 0;

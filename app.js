@@ -50,6 +50,7 @@ const State = {
     
     // Timeframe Configuration
     timeframeMinutes: 5,
+    rawCSVCandles: [],   // Unaggregated base CSV candles
     
     // Technical drawing state
     isRectToolActive: false,
@@ -677,12 +678,16 @@ function drawChartFrame() {
         const strokeColor = isBullish ? State.colors.barUp : State.colors.barDown;
         let fillColor = isBullish ? State.colors.bull : State.colors.bear;
         
-        // If the candle is narrow (width <= 4), draw it as solid (fillColor = strokeColor)
-        // to prevent hollow rendering gaps or split borders that make it look half-missing.
-        if (candleWidth <= 4) {
-            fillColor = strokeColor;
+        // If the candle is narrow (width < 3), draw it as solid using its body color (bull/bear),
+        // unless the body color matches the background (like hollow bull candles), in which case we use the stroke color.
+        if (candleWidth < 3) {
+            const isHollow = fillColor === State.colors.bg || 
+                             (State.colors.bg === '#ffffff' && (fillColor === '#ffffff' || fillColor === '#fff' || fillColor === 'transparent'));
+            if (isHollow) {
+                fillColor = strokeColor;
+            }
         } else if (fillColor === State.colors.bg || (State.colors.bg === '#ffffff' && (fillColor === '#ffffff' || fillColor === '#fff'))) {
-            // Keep visibility check for hollow candles on matching backgrounds
+            // Keep visibility check for hollow candles on matching backgrounds when wide
             fillColor = strokeColor;
         }
 
@@ -700,8 +705,8 @@ function drawChartFrame() {
         const roundedYClose = Math.round(yClose);
         const flatHeight = Math.abs(roundedYClose - roundedYOpen);
 
-        // 2. Always draw the wick as an ultra-thin line (strictly 0.5px)
-        ctx.lineWidth = 0.5;
+        // 2. Always draw the wick as an ultra-thin line (strictly 0.25px)
+        ctx.lineWidth = 0.25;
         ctx.beginPath();
         ctx.moveTo(wickX, Math.round(yHigh));
         ctx.lineTo(wickX, Math.round(yLow));
@@ -719,9 +724,9 @@ function drawChartFrame() {
             // Draw filled body (always centered exactly on wickX)
             ctx.fillRect(xStart, bodyY, candleWidth, bodyHeight);
             
-            // Draw body border ONLY if the candle is wide enough (candleWidth > 4)
-            if (candleWidth > 4) {
-                ctx.lineWidth = 1.0;
+            // Draw body border if the candle is at least 3px wide
+            if (candleWidth >= 3) {
+                ctx.lineWidth = 0.25;
                 ctx.strokeRect(xStart + 0.5, bodyY + 0.5, candleWidth - 1, bodyHeight - 1);
             }
         }
@@ -2243,7 +2248,19 @@ document.querySelectorAll('.tf-option').forEach(option => {
         
         const tf = option.dataset.tf;
         activeTfDisplay.textContent = tf;
-        tfDisplayBtn.textContent = tf; // update the top-right button label!
+        if (tfDisplayBtn) {
+            tfDisplayBtn.textContent = tf; // update the top-right button label if it exists!
+        }
+        
+        // Show/hide timeframe overlay image (M15.jpg) in the header
+        const tfOverlay = document.getElementById('header-tf-overlay');
+        if (tfOverlay) {
+            if (tf === 'M15') {
+                tfOverlay.classList.remove('hidden');
+            } else {
+                tfOverlay.classList.add('hidden');
+            }
+        }
         
         // Update timeframe state minutes
         let mins = 5;
@@ -2256,9 +2273,51 @@ document.querySelectorAll('.tf-option').forEach(option => {
         else if (tf === 'D1') mins = 1440;
         
         State.timeframeMinutes = mins;
+        localStorage.setItem('mt5_active_tf', tf);
         
-        // Regenerate mock data for new timeframe
-        generateMockData();
+        // If we have imported raw CSV candles, aggregate them dynamically instead of generating mock data
+        if (State.rawCSVCandles && State.rawCSVCandles.length > 0) {
+            const baseTf = detectCSVTimeframe(State.rawCSVCandles);
+            if (State.timeframeMinutes < baseTf) {
+                let baseTfName = baseTf + " دقيقة";
+                if (baseTf === 60) baseTfName = "ساعة واحدة (H1)";
+                else if (baseTf === 240) baseTfName = "4 ساعات (H4)";
+                else if (baseTf === 1440) baseTfName = "يومي (D1)";
+                
+                let selectedTfName = State.timeframeMinutes + " دقيقة";
+                if (State.timeframeMinutes === 1) selectedTfName = "دقيقة واحدة (M1)";
+                else if (State.timeframeMinutes === 5) selectedTfName = "5 دقائق (M5)";
+                
+                alert(`تنبيه:\nملف CSV المرفق يحتوي على بيانات بفريم ${baseTfName} كحد أدنى.\nلا يمكن عرض تفاصيل الفريم الأصغر المختار (${selectedTfName}) لأن البيانات الفرعية غير متوفرة بالملف. سيتم عرض الشموع بفريم ${baseTfName}.`);
+            }
+            
+            State.candles = aggregateCandles(State.rawCSVCandles, State.timeframeMinutes);
+            State.replayIndex = Math.min(50, State.candles.length - 1);
+            
+            const latest = State.candles[State.candles.length - 1];
+            if (latest) {
+                State.currentBid = latest.close;
+                State.currentAsk = latest.close + State.spread;
+            }
+            
+            // Cache the newly aggregated candles to localStorage for quick startup loads
+            try {
+                const simplifiedCandles = State.candles.map(c => ({
+                    t: c.time.getTime(),
+                    o: c.open,
+                    h: c.high,
+                    l: c.low,
+                    c: c.close
+                }));
+                localStorage.setItem('mt5_imported_candles', JSON.stringify(simplifiedCandles));
+            } catch (e) {
+                console.error('Failed to cache aggregated candles:', e);
+            }
+        } else {
+            // Regenerate mock data for new timeframe
+            generateMockData();
+        }
+        
         drawChart();
         
         // Hide dropdown
@@ -2629,11 +2688,13 @@ resetBalanceBtn.addEventListener('click', () => {
 
 resetDataBtn.addEventListener('click', () => {
     localStorage.removeItem('mt5_imported_candles');
+    localStorage.removeItem('mt5_raw_csv_candles');
     localStorage.removeItem('mt5_imported_filename');
     localStorage.removeItem('mt5_chart_colors');
     localStorage.removeItem('mt5_drawings');
     localStorage.removeItem('mt5_dark_mode');
     State.drawings = [];
+    State.rawCSVCandles = [];
     
     // Restore default colors
     State.colors = {
@@ -2677,6 +2738,93 @@ Object.keys(colorInputs).forEach(key => {
         });
     }
 });
+
+// Dynamically aggregate base candles into target timeframe intervals
+function aggregateCandles(baseCandles, targetMinutes) {
+    if (!baseCandles || baseCandles.length === 0) return [];
+    
+    const map = new Map();
+    
+    baseCandles.forEach(c => {
+        const t = new Date(c.time);
+        
+        let roundedTime;
+        if (targetMinutes < 60) {
+            const minutes = t.getMinutes();
+            const roundedMins = Math.floor(minutes / targetMinutes) * targetMinutes;
+            roundedTime = new Date(t.getFullYear(), t.getMonth(), t.getDate(), t.getHours(), roundedMins, 0, 0);
+        } else if (targetMinutes === 60) {
+            roundedTime = new Date(t.getFullYear(), t.getMonth(), t.getDate(), t.getHours(), 0, 0, 0);
+        } else if (targetMinutes === 240) {
+            const hours = t.getHours();
+            const roundedHours = Math.floor(hours / 4) * 4;
+            roundedTime = new Date(t.getFullYear(), t.getMonth(), t.getDate(), roundedHours, 0, 0, 0);
+        } else {
+            // Daily (D1)
+            roundedTime = new Date(t.getFullYear(), t.getMonth(), t.getDate(), 0, 0, 0, 0);
+        }
+        
+        const key = roundedTime.getTime();
+        let bucket = map.get(key);
+        if (!bucket) {
+            bucket = {
+                time: roundedTime,
+                open: c.open,
+                high: c.high,
+                low: c.low,
+                close: c.close,
+                rawCandles: [c]
+            };
+            map.set(key, bucket);
+        } else {
+            bucket.rawCandles.push(c);
+        }
+    });
+    
+    const sortedKeys = Array.from(map.keys()).sort((a, b) => a - b);
+    
+    return sortedKeys.map(key => {
+        const bucket = map.get(key);
+        bucket.rawCandles.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+        
+        const open = bucket.rawCandles[0].open;
+        const close = bucket.rawCandles[bucket.rawCandles.length - 1].close;
+        const high = Math.max(...bucket.rawCandles.map(c => c.high));
+        const low = Math.min(...bucket.rawCandles.map(c => c.low));
+        
+        return {
+            time: bucket.time,
+            timeLabel: formatTimeLabel(bucket.time),
+            open: open,
+            high: high,
+            low: low,
+            close: close
+        };
+    });
+}
+
+// Helper to detect the base timeframe of imported CSV candles
+function detectCSVTimeframe(candles) {
+    if (!candles || candles.length < 2) return 5;
+    let diffs = [];
+    for (let i = 0; i < Math.min(15, candles.length - 1); i++) {
+        const diffMs = new Date(candles[i+1].time).getTime() - new Date(candles[i].time).getTime();
+        diffs.push(Math.round(diffMs / (60 * 1000)));
+    }
+    const counts = {};
+    let maxCount = 0;
+    let mode = 5;
+    diffs.forEach(d => {
+        if (d > 0) {
+            counts[d] = (counts[d] || 0) + 1;
+            if (counts[d] > maxCount) {
+                maxCount = counts[d];
+                mode = d;
+            }
+        }
+    });
+    return mode;
+}
 
 // Reusable CSV parsing function
 function parseAndLoadCSVData(text) {
@@ -2786,16 +2934,35 @@ function parseAndLoadCSVData(text) {
     
     if (newCandles.length > 0) {
         newCandles.sort((a, b) => a.time.getTime() - b.time.getTime());
-        State.candles = newCandles;
-        State.replayIndex = Math.min(50, newCandles.length - 1);
         
-        const latest = newCandles[newCandles.length - 1];
-        State.currentBid = latest.close;
-        State.currentAsk = latest.close + State.spread;
-        
-        // Save to localStorage for persistence across page reloads
+        // Save the raw unaggregated candles to State and localStorage
+        State.rawCSVCandles = newCandles;
         try {
-            const simplifiedCandles = newCandles.map(c => ({
+            const simplifiedRaw = newCandles.map(c => ({
+                t: c.time.getTime(),
+                o: c.open,
+                h: c.high,
+                l: c.low,
+                c: c.close
+            }));
+            localStorage.setItem('mt5_raw_csv_candles', JSON.stringify(simplifiedRaw));
+        } catch (e) {
+            console.error('Failed to save raw CSV candles to localStorage:', e);
+        }
+        
+        // Dynamically aggregate to the active timeframe minutes
+        State.candles = aggregateCandles(newCandles, State.timeframeMinutes);
+        State.replayIndex = Math.min(50, State.candles.length - 1);
+        
+        const latest = State.candles[State.candles.length - 1];
+        if (latest) {
+            State.currentBid = latest.close;
+            State.currentAsk = latest.close + State.spread;
+        }
+        
+        // Save the aggregated candles to localStorage for quick startup loads
+        try {
+            const simplifiedCandles = State.candles.map(c => ({
                 t: c.time.getTime(),
                 o: c.open,
                 h: c.high,
@@ -2804,7 +2971,7 @@ function parseAndLoadCSVData(text) {
             }));
             localStorage.setItem('mt5_imported_candles', JSON.stringify(simplifiedCandles));
         } catch (e) {
-            console.error('Failed to save candles to localStorage:', e);
+            console.error('Failed to save aggregated candles to localStorage:', e);
         }
         
         return true;
@@ -2825,7 +2992,17 @@ csvFileInput.addEventListener('change', (e) => {
             if (success) {
                 updateTradingPanelUI();
                 drawChart();
-                alert(`تم استيراد ${State.candles.length} شمعة بنجاح!`);
+                const detectedTf = detectCSVTimeframe(State.rawCSVCandles);
+                let tfName = detectedTf + " دقيقة";
+                if (detectedTf === 60) tfName = "ساعة واحدة (H1)";
+                else if (detectedTf === 240) tfName = "4 ساعات (H4)";
+                else if (detectedTf === 1440) tfName = "يومي (D1)";
+                else if (detectedTf === 1) tfName = "دقيقة واحدة (M1)";
+                else if (detectedTf === 5) tfName = "5 دقائق (M5)";
+                else if (detectedTf === 15) tfName = "15 دقيقة (M15)";
+                else if (detectedTf === 30) tfName = "30 دقيقة (M30)";
+                
+                alert(`تم استيراد ملف CSV بنجاح!\nالتردد المكتشف بالملف: ${tfName}\nإجمالي الشموع المجمعة: ${State.candles.length}`);
                 switchPage('page-chart');
             } else {
                 alert('فشل في العثور على شموع صالحة بالملف. يرجى التحقق من صياغة البيانات.');
@@ -2839,7 +3016,60 @@ csvFileInput.addEventListener('change', (e) => {
 
 // --- INITIALIZATION ---
 window.addEventListener('load', () => {
-    // 1. Try to load from localStorage first
+    // A. Restore previously active timeframe selection
+    const savedTf = localStorage.getItem('mt5_active_tf') || 'M5';
+    document.querySelectorAll('.tf-option').forEach(opt => {
+        if (opt.dataset.tf === savedTf) {
+            opt.classList.add('active');
+        } else {
+            opt.classList.remove('active');
+        }
+    });
+    
+    const activeTfDisplay = document.getElementById('active-tf-display');
+    const tfDisplayBtn = document.getElementById('tf-display-btn');
+    if (activeTfDisplay) activeTfDisplay.textContent = savedTf;
+    if (tfDisplayBtn) tfDisplayBtn.textContent = savedTf;
+    
+    // Toggle the header timeframe M15 overlay
+    const tfOverlay = document.getElementById('header-tf-overlay');
+    if (tfOverlay) {
+        if (savedTf === 'M15') {
+            tfOverlay.classList.remove('hidden');
+        } else {
+            tfOverlay.classList.add('hidden');
+        }
+    }
+    
+    let mins = 5;
+    if (savedTf === 'M1') mins = 1;
+    else if (savedTf === 'M5') mins = 5;
+    else if (savedTf === 'M15') mins = 15;
+    else if (savedTf === 'M30') mins = 30;
+    else if (savedTf === 'H1') mins = 60;
+    else if (savedTf === 'H4') mins = 240;
+    else if (savedTf === 'D1') mins = 1440;
+    State.timeframeMinutes = mins;
+
+    // B. Load raw unaggregated CSV candles from localStorage
+    const savedRaw = localStorage.getItem('mt5_raw_csv_candles');
+    if (savedRaw) {
+        try {
+            const parsedRaw = JSON.parse(savedRaw);
+            State.rawCSVCandles = parsedRaw.map(item => ({
+                time: new Date(item.t),
+                open: item.o,
+                high: item.h,
+                low: item.l,
+                close: item.c
+            }));
+            console.log(`Loaded ${State.rawCSVCandles.length} raw CSV candles from cache.`);
+        } catch (e) {
+            console.error('Failed to parse cached raw CSV candles:', e);
+        }
+    }
+
+    // C. Load cached aggregated candles
     const saved = localStorage.getItem('mt5_imported_candles');
     if (saved) {
         try {
@@ -2857,7 +3087,7 @@ window.addEventListener('load', () => {
             });
             
             if (loadedCandles.length > 0) {
-                console.log(`Loaded ${loadedCandles.length} candles from localStorage cache.`);
+                console.log(`Loaded ${loadedCandles.length} aggregated candles from localStorage cache.`);
                 State.candles = loadedCandles;
                 State.replayIndex = Math.min(50, loadedCandles.length - 1);
                 const latest = loadedCandles[loadedCandles.length - 1];
@@ -2919,8 +3149,8 @@ function finalizeInit() {
     updateTradingPanelUI();
     updatePositionsProfit();
     
-    // Force clean old service worker cache on first load of version 3
-    if (!localStorage.getItem('sw_migrated_v3')) {
+    // Force clean old service worker cache on first load of version 4
+    if (!localStorage.getItem('sw_migrated_v4')) {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(registrations => {
                 for (let registration of registrations) {
@@ -2933,7 +3163,7 @@ function finalizeInit() {
                 for (let name of names) caches.delete(name);
             });
         }
-        localStorage.setItem('sw_migrated_v3', 'true');
+        localStorage.setItem('sw_migrated_v4', 'true');
         setTimeout(() => {
             window.location.reload(true); // Force reload to fetch everything fresh
         }, 200);
@@ -2942,7 +3172,7 @@ function finalizeInit() {
 
     // Register PWA Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=3')
+        navigator.serviceWorker.register('./sw.js?v=4')
             .then(() => console.log('PWA Service Worker Registered'))
             .catch(err => console.log('Service Worker Registration Failed:', err));
     }
