@@ -12,7 +12,7 @@ const State = {
     
     // Chart View State
     candles: [],         // All historical candles
-    zoom: 8,             // Candle spacing + width in pixels (reduced to fit 4 time labels spaced closer on mobile)
+    zoom: 5.5,           // Default zoom to show 55-60 candles on iPhone 13 Pro
     panOffset: 0,        // Horizontal scroll offset (in candles)
     panOffsetY: 0,       // Vertical scroll offset (in pixels)
     isAutoYScale: true,  // Automatically fit price scale to visible candles
@@ -279,7 +279,7 @@ function getPriceRange(visibleCandles) {
     });
     
     const diff = max - min;
-    const padding = diff > 0 ? diff * 0.1 : 10;
+    const padding = diff > 0 ? diff * 0.11 : 10;
     
     return {
         min: min - padding,
@@ -312,7 +312,7 @@ function drawChartFrame() {
     
     // Calculate candle properties
     const candleSpacing = State.zoom;
-    const candleWidth = Math.max(1, Math.floor(candleSpacing * 0.7));
+    const candleWidth = Math.max(1, Math.floor(candleSpacing * 0.68));
     
     const chartWidth = State.width - MARGIN_RIGHT - MARGIN_LEFT;
     const chartHeight = State.height - MARGIN_BOTTOM - MARGIN_TOP;
@@ -633,7 +633,7 @@ function drawChartFrame() {
     // 3. Draw Candlesticks (Custom Colors: barUp, barDown, bull, bear)
     visibleCandles.forEach((candle, idx) => {
         const absIdx = startIndex + idx;
-        const x = getX(absIdx);
+        const rawX = getX(absIdx);
         
         const yOpen = getY(candle.open);
         const yClose = getY(candle.close);
@@ -646,26 +646,39 @@ function drawChartFrame() {
         
         ctx.strokeStyle = strokeColor;
         ctx.fillStyle = fillColor;
-        ctx.lineWidth = 0.5;
         
-        // Draw wick
+        // 1. Calculate pixel-aligned coordinates for the body (crisp integer boundaries)
+        const xStart = Math.floor(rawX - candleWidth / 2);
+        const xEnd = xStart + candleWidth;
+        const bodyHeight = Math.max(1, Math.round(Math.abs(yClose - yOpen)));
+        const bodyY = Math.round(Math.min(yOpen, yClose));
+        
+        // 2. Draw wick (crisp 0.5px thick vertical line centered exactly on half-pixel boundary)
+        const wickX = Math.floor(xStart + candleWidth / 2) + 0.5;
+        ctx.lineWidth = 0.5;
         ctx.beginPath();
-        ctx.moveTo(x, yHigh);
-        ctx.lineTo(x, yLow);
+        ctx.moveTo(wickX, Math.round(yHigh));
+        ctx.lineTo(wickX, Math.round(yLow));
         ctx.stroke();
         
-        // Draw body
-        const bodyHeight = Math.abs(yClose - yOpen);
-        const bodyY = Math.min(yOpen, yClose);
+        // 3. Draw body (crisp solid rectangle)
+        const roundedYOpen = Math.round(yOpen);
+        const roundedYClose = Math.round(yClose);
+        const flatHeight = Math.abs(roundedYClose - roundedYOpen);
         
-        if (bodyHeight < 1) {
+        if (flatHeight < 1) {
+            // Doji / flat candle line
+            ctx.lineWidth = 1.0;
             ctx.beginPath();
-            ctx.moveTo(x - candleWidth / 2, bodyY);
-            ctx.lineTo(x + candleWidth / 2, bodyY);
+            ctx.moveTo(xStart, bodyY + 0.5);
+            ctx.lineTo(xEnd, bodyY + 0.5);
             ctx.stroke();
         } else {
-            ctx.fillRect(x - candleWidth / 2, bodyY, candleWidth, bodyHeight);
-            ctx.strokeRect(x - candleWidth / 2, bodyY, candleWidth, bodyHeight);
+            ctx.fillRect(xStart, bodyY, candleWidth, bodyHeight);
+            
+            // Draw body border using crisp 1px line width
+            ctx.lineWidth = 1.0;
+            ctx.strokeRect(xStart + 0.5, bodyY + 0.5, candleWidth - 1, bodyHeight - 1);
         }
     });
     
@@ -1318,7 +1331,7 @@ function handlePointerMove(e) {
         }
         
         const factor = touchStartDist > 0 ? dist / touchStartDist : 1;
-        State.zoom = Math.max(3, Math.min(30, initialZoom * factor));
+        State.zoom = Math.max(4, Math.min(20, initialZoom * factor));
         drawChart();
         return;
     }
@@ -1604,7 +1617,7 @@ function handleDoubleClick(e) {
 function handleWheel(e) {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.1 : 0.9;
-    State.zoom = Math.max(3, Math.min(30, State.zoom * factor));
+    State.zoom = Math.max(4, Math.min(20, State.zoom * factor));
     drawChart();
 }
 
