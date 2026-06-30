@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Lato:wght@400;700&family=Montserrat:wght@400;500;700&family=Open+Sans:wght@400;600&family=Outfit:wght@400;500;700&family=Poppins:wght@400;500;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="styles.css?v=11">
+    <link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body>
     <div class="iphone-frame">
@@ -286,6 +286,11 @@
                         </div>
 
                         <div class="settings-group">
+                            <div class="settings-title">تحديث التطبيق وتخطي الكاش (Force Update)</div>
+                            <button class="settings-btn" id="force-update-btn" style="background-color: #d03a20; margin-top: 5px;">تحديث وتفريغ كاش الهاتف</button>
+                        </div>
+
+                        <div class="settings-group">
                             <div class="settings-title">مظهر المنصة (Appearance)</div>
                             <div class="settings-item">
                                 <span>الوضع الليلي (Dark Mode)</span>
@@ -297,7 +302,7 @@
                         </div>
 
                         <div class="settings-group">
-                            <div class="settings-title">أبعاد صفقات BUY / SELL (بالبكسل)</div>
+                            <div class="settings-title">أبعاد صفقات وعناصر الشارت (Chart Elements & Sizing)</div>
                             <div class="settings-item">
                                 <span>الارتفاع المرئي للكلمات</span>
                                 <input type="number" id="setting-label-height" value="12" step="any" style="width: 60px; text-align: center;">
@@ -319,12 +324,64 @@
                                 <input type="number" id="setting-sell-lot-width" value="23" step="any" style="width: 60px; text-align: center;">
                             </div>
                             <div class="settings-item">
-                                <span>تباعد الحروف للكلمة</span>
+                                <span>تباعد الحروف للكلمات (BUY/SELL)</span>
                                 <input type="number" id="setting-label-spacing" value="2" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>تباعد أرقام اللوت (اليسار)</span>
+                                <input type="number" id="setting-lot-spacing" value="0" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>تباعد أرقام الأسعار (اليمين)</span>
+                                <input type="number" id="setting-prices-spacing" value="2.0" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>تباعد أرقام الوقت (الأسفل)</span>
+                                <input type="number" id="setting-time-spacing" value="0" step="any" style="width: 60px; text-align: center;">
                             </div>
                             <div class="settings-item">
                                 <span>المسافة بين الكلمة واللوت</span>
                                 <input type="number" id="setting-label-gap" value="6" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>عرض صندوق الأسعار الأيمن</span>
+                                <input type="number" id="setting-price-box-width" value="64" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>ارتفاع صندوق الأسعار الأيمن</span>
+                                <input type="number" id="setting-price-box-height" value="14" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>سماكة خطوط الصفقات المنقطة</span>
+                                <input type="number" id="setting-trade-line-width" value="0.5" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>سماكة ذيل وإطار الشموع</span>
+                                <input type="number" id="setting-wick-width" value="0.25" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <div class="settings-title">عمود وأرقام الأسعار اليمنى (Right Price Scale Column)</div>
+                            <div class="settings-item">
+                                <span>عرض عمود الأسعار بالكامل</span>
+                                <input type="number" id="setting-margin-right" value="68" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>تباعد السعر عن الخط الفاصل</span>
+                                <input type="number" id="setting-price-axis-offset" value="6" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>أقصى عرض مسموح لنص السعر</span>
+                                <input type="number" id="setting-price-axis-max-width" value="56" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>ارتفاع أرقام الأسعار (حجم الخط)</span>
+                                <input type="number" id="setting-font-size-prices" value="11" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>عرض/مقياس أرقام الأسعار أفقياً</span>
+                                <input type="number" id="setting-prices-scale-x" value="1.0" step="any" style="width: 60px; text-align: center;">
                             </div>
                         </div>
 
@@ -358,15 +415,23 @@
                             <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 4px; margin-top: 10px;">
                                 <span>سماكة خط صفقات BUY/SELL (Weight)</span>
                                 <select id="setting-weight-labels" class="settings-select">
-                                    <option value="100">100 (نحيف جداً - Thin)</option>
-                                    <option value="200">200 (خفيف للغاية - Extra Light)</option>
-                                    <option value="300">300 (خفيف - Light)</option>
-                                    <option value="400" selected>400 (عادي - Normal)</option>
-                                    <option value="500">500 (متوسط - Medium)</option>
-                                    <option value="600">600 (شبه سميك - Semi-Bold)</option>
-                                    <option value="700">700 (سميك - Bold)</option>
-                                    <option value="800">800 (سميك للغاية - Extra Bold)</option>
-                                    <option value="900">900 (سميك جداً - Black)</option>
+                                    <option value="100">100 (نحيف جداً)</option>
+                                    <option value="150">150</option>
+                                    <option value="200">200</option>
+                                    <option value="250">250</option>
+                                    <option value="300">300</option>
+                                    <option value="350">350</option>
+                                    <option value="400" selected>400 (عادي - افتراضي)</option>
+                                    <option value="450">450</option>
+                                    <option value="500">500</option>
+                                    <option value="550">550</option>
+                                    <option value="600">600</option>
+                                    <option value="650">650</option>
+                                    <option value="700">700 (سميك)</option>
+                                    <option value="750">750</option>
+                                    <option value="800">800</option>
+                                    <option value="850">850</option>
+                                    <option value="900">900 (سميك جداً)</option>
                                 </select>
                             </div>
                             <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 4px; margin-top: 10px;">
@@ -397,15 +462,23 @@
                             <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 4px; margin-top: 10px;">
                                 <span>سماكة خط الأسعار (Weight)</span>
                                 <select id="setting-weight-prices" class="settings-select">
-                                    <option value="100">100 (نحيف جداً - Thin)</option>
-                                    <option value="200">200 (خفيف للغاية - Extra Light)</option>
-                                    <option value="300">300 (خفيف - Light)</option>
-                                    <option value="400" selected>400 (عادي - Normal)</option>
-                                    <option value="500">500 (متوسط - Medium)</option>
-                                    <option value="600">600 (شبه سميك - Semi-Bold)</option>
-                                    <option value="700">700 (سميك - Bold)</option>
-                                    <option value="800">800 (سميك للغاية - Extra Bold)</option>
-                                    <option value="900">900 (سميك جداً - Black)</option>
+                                    <option value="100">100 (نحيف جداً)</option>
+                                    <option value="150">150</option>
+                                    <option value="200">200</option>
+                                    <option value="250">250</option>
+                                    <option value="300">300</option>
+                                    <option value="350">350</option>
+                                    <option value="400" selected>400 (عادي - افتراضي)</option>
+                                    <option value="450">450</option>
+                                    <option value="500">500</option>
+                                    <option value="550">550</option>
+                                    <option value="600">600</option>
+                                    <option value="650">650</option>
+                                    <option value="700">700 (سميك)</option>
+                                    <option value="750">750</option>
+                                    <option value="800">800</option>
+                                    <option value="850">850</option>
+                                    <option value="900">900 (سميك جداً)</option>
                                 </select>
                             </div>
                             <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 4px; margin-top: 10px;">
@@ -436,15 +509,23 @@
                             <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 4px; margin-top: 10px;">
                                 <span>سماكة خط توقيت الشموع (Weight)</span>
                                 <select id="setting-weight-time" class="settings-select">
-                                    <option value="100">100 (نحيف جداً - Thin)</option>
-                                    <option value="200">200 (خفيف للغاية - Extra Light)</option>
-                                    <option value="300">300 (خفيف - Light)</option>
-                                    <option value="400" selected>400 (عادي - Normal)</option>
-                                    <option value="500">500 (متوسط - Medium)</option>
-                                    <option value="600">600 (شبه سميك - Semi-Bold)</option>
-                                    <option value="700">700 (سميك - Bold)</option>
-                                    <option value="800">800 (سميك للغاية - Extra Bold)</option>
-                                    <option value="900">900 (سميك جداً - Black)</option>
+                                    <option value="100">100 (نحيف جداً)</option>
+                                    <option value="150">150</option>
+                                    <option value="200">200</option>
+                                    <option value="250">250</option>
+                                    <option value="300">300</option>
+                                    <option value="350">350</option>
+                                    <option value="400" selected>400 (عادي - افتراضي)</option>
+                                    <option value="450">450</option>
+                                    <option value="500">500</option>
+                                    <option value="550">550</option>
+                                    <option value="600">600</option>
+                                    <option value="650">650</option>
+                                    <option value="700">700 (سميك)</option>
+                                    <option value="750">750</option>
+                                    <option value="800">800</option>
+                                    <option value="850">850</option>
+                                    <option value="900">900 (سميك جداً)</option>
                                 </select>
                             </div>
                         </div>
@@ -457,8 +538,8 @@
                                     <input type="color" id="setting-color-buy-label" value="#3c99ff">
                                 </div>
                                 <div class="settings-color-item">
-                                    <span>نص سعر الشراء (داخل المربع الأيمن)</span>
-                                    <input type="color" id="setting-color-buy-text" value="#ffffff">
+                                    <span>لون لوت الشراء (الرقم الأيسر)</span>
+                                    <input type="color" id="setting-color-buy-text" value="#3c99ff">
                                 </div>
                                 <div class="settings-color-item">
                                     <span>كلمة البيع SELL</span>
@@ -469,8 +550,8 @@
                                     <input type="color" id="setting-color-sell-line" value="#e73d2b">
                                 </div>
                                 <div class="settings-color-item">
-                                    <span>نص سعر البيع (داخل المربع الأيمن)</span>
-                                    <input type="color" id="setting-color-sell-text" value="#ffffff">
+                                    <span>لون لوت البيع (الرقم الأيسر)</span>
+                                    <input type="color" id="setting-color-sell-text" value="#dd5e56">
                                 </div>
                             </div>
                         </div>
@@ -635,6 +716,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=11"></script>
+    <script src="app.js?v=16"></script>
 </body>
 </html>

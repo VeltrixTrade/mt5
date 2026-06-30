@@ -84,6 +84,24 @@ const State = {
     labelSpacing: parseFloat(localStorage.getItem('mt5_label_spacing')) || 2.0,
     labelGap: parseFloat(localStorage.getItem('mt5_label_gap')) || 6,
     
+    // Spacings for numbers
+    lotSpacing: parseFloat(localStorage.getItem('mt5_lot_spacing')) || 0,
+    pricesSpacing: parseFloat(localStorage.getItem('mt5_prices_spacing')) || 2.0,
+    timeSpacing: parseFloat(localStorage.getItem('mt5_time_spacing')) || 0,
+    
+    // Elements sizes & thicknesses
+    priceBoxWidth: parseFloat(localStorage.getItem('mt5_price_box_width')) || 64,
+    priceBoxHeight: parseFloat(localStorage.getItem('mt5_price_box_height')) || 14,
+    tradeLineWidth: parseFloat(localStorage.getItem('mt5_trade_line_width')) || 0.5,
+    wickWidth: parseFloat(localStorage.getItem('mt5_wick_width')) || 0.25,
+    
+    // Price axis column adjustments
+    marginRight: parseFloat(localStorage.getItem('mt5_margin_right')) || 68,
+    priceAxisOffset: parseFloat(localStorage.getItem('mt5_price_axis_offset')) || 6,
+    priceAxisMaxWidth: parseFloat(localStorage.getItem('mt5_price_axis_max_width')) || 56,
+    fontSizePrices: parseFloat(localStorage.getItem('mt5_font_size_prices')) || 11,
+    pricesScaleX: parseFloat(localStorage.getItem('mt5_prices_scale_x')) || 1.0,
+    
     fontLabels: localStorage.getItem('mt5_font_labels') || '"Helvetica Neue", Helvetica, Arial, sans-serif',
     fontPrices: localStorage.getItem('mt5_font_prices') || '"SF Pro Display", -apple-system, sans-serif',
     fontTime: localStorage.getItem('mt5_font_time') || '"SF Pro Display", -apple-system, sans-serif',
@@ -93,10 +111,10 @@ const State = {
     weightTime: localStorage.getItem('mt5_weight_time') || '400',
     
     colorBuyLabel: localStorage.getItem('mt5_color_buy_label') || '#3c99ff',
-    colorBuyText: localStorage.getItem('mt5_color_buy_text') || '#ffffff',
+    colorBuyText: localStorage.getItem('mt5_color_buy_text') || '#3c99ff',
     colorSellWord: localStorage.getItem('mt5_color_sell_word') || '#dd5e56',
     colorSellLine: localStorage.getItem('mt5_color_sell_line') || '#e73d2b',
-    colorSellText: localStorage.getItem('mt5_color_sell_text') || '#ffffff'
+    colorSellText: localStorage.getItem('mt5_color_sell_text') || '#dd5e56'
 };
 
 // --- DOM ELEMENTS ---
@@ -158,7 +176,7 @@ const crosshairValX = document.getElementById('crosshair-val-x');
 const crosshairValY = document.getElementById('crosshair-val-y');
 
 // Layout boundaries
-const MARGIN_RIGHT = 68;  // Space for price axis (exactly 68px as in original MT5)
+let MARGIN_RIGHT = 68;  // Space for price axis (user customizable)
 const MARGIN_BOTTOM = 18; // Space for time axis (98px from bottom of screen: 18px margin + 80px nav)
 const MARGIN_TOP = 1;     // Space at top (91px from top of screen)
 const MARGIN_LEFT = 0;    // Starts at 0 to make chart width exactly 322px (390 - 68)
@@ -311,7 +329,7 @@ function getPriceRange(visibleCandles) {
     };
 }
 
-function fillTextWithSpacing(ctx, text, x, y, spacing, align = 'left', maxWidth = null) {
+function fillTextWithSpacing(ctx, text, x, y, spacing, align = 'left', maxWidth = null, forceScaleX = null) {
     ctx.save();
     
     // Set text direction to LTR to ensure numbers don't reverse
@@ -321,9 +339,11 @@ function fillTextWithSpacing(ctx, text, x, y, spacing, align = 'left', maxWidth 
     const charWidths = chars.map(c => ctx.measureText(c).width);
     const naturalWidth = charWidths.reduce((a, b) => a + b, 0) + (chars.length - 1) * spacing;
     
-    // Apply maxWidth scaling factor if text is too wide
+    // Apply scaling factor (either forced scale X or auto max-width clamp)
     let scaleX = 1.0;
-    if (maxWidth !== null && naturalWidth > maxWidth) {
+    if (forceScaleX !== null) {
+        scaleX = forceScaleX;
+    } else if (maxWidth !== null && naturalWidth > maxWidth) {
         scaleX = maxWidth / naturalWidth;
     }
     
@@ -358,6 +378,8 @@ function drawChart() {
 
 function drawChartFrame() {
     if (State.width === 0 || State.height === 0 || State.candles.length === 0) return;
+    
+    MARGIN_RIGHT = State.marginRight;
     
     // Force LTR direction on canvas to prevent system-level RTL shuffling of numbers and timestamps
     ctx.direction = 'ltr';
@@ -424,7 +446,7 @@ function drawChartFrame() {
     ctx.strokeStyle = State.colors.grid;
     ctx.lineWidth = 0.5;
     ctx.setLineDash([1, 2]); // dotted lines
-    ctx.font = State.weightPrices + ' 12px ' + State.fontPrices;
+    ctx.font = State.weightPrices + ' ' + State.fontSizePrices + 'px ' + State.fontPrices;
     ctx.fillStyle = State.colors.foreground;
     
     // Price grid lines: 15 labels, spaced to fit exactly 99px top offset and 135px bottom offset.
@@ -443,15 +465,17 @@ function drawChartFrame() {
         ctx.strokeStyle = State.colors.grid;
         ctx.lineWidth = 1;
         
-        // Draw axis tick pointing rightwards
+        // Draw axis tick pointing rightwards (adjusting length based on offset)
+        const tickLength = Math.max(1, Math.min(3, State.priceAxisOffset));
         ctx.beginPath();
         ctx.moveTo(MARGIN_LEFT + chartWidth, y);
-        ctx.lineTo(MARGIN_LEFT + chartWidth + 3, y);
+        ctx.lineTo(MARGIN_LEFT + chartWidth + tickLength, y);
         ctx.stroke();
         
         ctx.textBaseline = 'middle';
         ctx.fillStyle = State.colors.foreground;
-        fillTextWithSpacing(ctx, gridPrice.toFixed(3), MARGIN_LEFT + chartWidth + 6, y, 2.0, 'left', 56);
+        ctx.font = State.weightPrices + ' ' + State.fontSizePrices + 'px ' + State.fontPrices;
+        fillTextWithSpacing(ctx, gridPrice.toFixed(3), MARGIN_LEFT + chartWidth + State.priceAxisOffset, y, State.pricesSpacing, 'left', null, State.pricesScaleX);
         ctx.restore();
     }
     
@@ -487,8 +511,8 @@ function drawChartFrame() {
             ctx.textAlign = 'left';
             ctx.font = State.weightTime + ' 11px ' + State.fontTime;
             ctx.fillStyle = State.colors.foreground;
-            // Draw time label aligned to drawX
-            ctx.fillText(timeInfo.timeLabel, drawX + 3, MARGIN_TOP + chartHeight + 14, 73);
+            // Draw time label aligned to drawX with customizable spacing
+            fillTextWithSpacing(ctx, timeInfo.timeLabel, drawX + 3, MARGIN_TOP + chartHeight + 14, State.timeSpacing, 'left', 73);
         }
         ctx.restore();
     });
@@ -728,8 +752,8 @@ function drawChartFrame() {
         const roundedYClose = Math.round(yClose);
         const flatHeight = Math.abs(roundedYClose - roundedYOpen);
 
-        // 2. Always draw the wick as an ultra-thin line (strictly 0.25px)
-        ctx.lineWidth = 0.25;
+        // 2. Always draw the wick as an ultra-thin line (user-configurable thickness)
+        ctx.lineWidth = State.wickWidth;
         ctx.beginPath();
         ctx.moveTo(wickX, Math.round(yHigh));
         ctx.lineTo(wickX, Math.round(yLow));
@@ -749,7 +773,7 @@ function drawChartFrame() {
             
             // Draw body border if the candle is at least 3px wide
             if (candleWidth >= 3) {
-                ctx.lineWidth = 0.25;
+                ctx.lineWidth = State.wickWidth;
                 ctx.strokeRect(xStart + 0.5, bodyY + 0.5, candleWidth - 1, bodyHeight - 1);
             }
         }
@@ -762,21 +786,18 @@ function drawChartFrame() {
         if (pos.animatedPrice === undefined) pos.animatedPrice = pos.openPrice;
         
         const y = getY(pos.animatedPrice);
-        if (y < MARGIN_TOP || y > MARGIN_TOP + chartHeight) return;
-        
-        const isBuy = pos.type === 'BUY';
+        if (y < MARGIN_TOP || y > MARGIN_TOP + chartHeight) return;        const isBuy = pos.type === 'BUY';
         
         // Colors & fonts fully customizable from settings
         const typeColor = isBuy ? State.colorBuyLabel : State.colorSellWord;
-        const lotColor = typeColor; // Both word and lot size on the left use the same label color!
+        const lotColor = isBuy ? State.colorBuyText : State.colorSellText; // Custom lot text color (not white on white)
         const lineColor = isBuy ? State.colorBuyLabel : State.colorSellLine;
-        const priceTextColor = isBuy ? State.colorBuyText : State.colorSellText; // Price text inside solid box
         
         ctx.save();
         ctx.globalAlpha = 0.7 * pos.opacity; // Opacity 0.7 for dashed line
         ctx.strokeStyle = lineColor;
         ctx.setLineDash([4, 4]); // Dash pattern: 4px dash, 4px gap
-        ctx.lineWidth = 0.5;      // Stroke width: 0.5px
+        ctx.lineWidth = State.tradeLineWidth;      // User-configurable line width
         
         const boxX = MARGIN_LEFT + chartWidth + 2;
         
@@ -840,13 +861,10 @@ function drawChartFrame() {
         }
         ctx.restore();
         
-        // Draw lot size text (e.g., "0.08") next to it with normal spacing and exact gap from Settings
-        const lotNaturalWidth = ctx.measureText(lotText).width;
+        // Draw lot size text (e.g., "0.08") next to it with custom spacing from Settings
         ctx.save();
         ctx.fillStyle = lotColor;
-        ctx.translate(5 + typeWidth + State.labelGap, y - 2); // Placed exactly after the word plus configured gap
-        ctx.scale(lotWidth / lotNaturalWidth, 1); // Scale horizontally to force exact pixel width for the lot
-        ctx.fillText(lotText, 0, 0);
+        fillTextWithSpacing(ctx, lotText, 5 + typeWidth + State.labelGap, y - 2, State.lotSpacing, 'left', lotWidth);
         ctx.restore();
         
         ctx.restore();
@@ -858,18 +876,22 @@ function drawChartFrame() {
         ctx.font = State.weightPrices + ' 12px ' + State.fontPrices;
         const priceText = pos.openPrice.toFixed(3);
         
-        const boxWidth = 64; // Width: 64px (matching Bid/Ask price box width)
-        const boxHeight = 14; // Height: 14px
+        const boxWidth = State.priceBoxWidth;
+        const boxHeight = State.priceBoxHeight;
         const boxY = y - boxHeight / 2; // Center vertically
         
-        // Draw solid background
-        ctx.fillStyle = lineColor;
+        // Draw transparent/white background with border and colored text (reverted from solid cover as requested)
+        ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
         
-        // Draw price text (limited to 56px width max) inside the solid box
-        ctx.fillStyle = priceTextColor;
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(boxX + 0.5, boxY + 0.5, boxWidth - 1, boxHeight - 1);
+        
+        // Draw price text (limited to box width minus 8px padding)
+        ctx.fillStyle = lineColor;
         ctx.textBaseline = 'middle';
-        fillTextWithSpacing(ctx, priceText, boxX + boxWidth / 2, y + 0.5, 2.0, 'center', 56);
+        fillTextWithSpacing(ctx, priceText, boxX + boxWidth / 2, y + 0.5, State.pricesSpacing, 'center', boxWidth - 8);
         ctx.restore();
     });
     
@@ -889,8 +911,8 @@ function drawChartFrame() {
         ctx.restore();
         
         ctx.save();
-        const boxWidth = 64;
-        const boxHeight = 14;
+        const boxWidth = State.priceBoxWidth;
+        const boxHeight = State.priceBoxHeight;
         const boxX = MARGIN_LEFT + chartWidth + 2;
         const boxY = askY - boxHeight / 2;
         
@@ -900,7 +922,7 @@ function drawChartFrame() {
         ctx.fillStyle = '#ffffff';
         ctx.font = State.weightPrices + ' 12px ' + State.fontPrices;
         ctx.textBaseline = 'middle';
-        fillTextWithSpacing(ctx, State.currentAsk.toFixed(3), boxX + boxWidth / 2, askY, 2.0, 'center', 56);
+        fillTextWithSpacing(ctx, State.currentAsk.toFixed(3), boxX + boxWidth / 2, askY, State.pricesSpacing, 'center', boxWidth - 8);
         ctx.restore();
     }
 
@@ -918,8 +940,8 @@ function drawChartFrame() {
         ctx.restore();
         
         ctx.save();
-        const boxWidth = 64;
-        const boxHeight = 14;
+        const boxWidth = State.priceBoxWidth;
+        const boxHeight = State.priceBoxHeight;
         const boxX = MARGIN_LEFT + chartWidth + 2;
         const boxY = bidY - boxHeight / 2;
         
@@ -931,7 +953,7 @@ function drawChartFrame() {
         ctx.fillStyle = '#ffffff';
         ctx.font = State.weightPrices + ' 12px ' + State.fontPrices;
         ctx.textBaseline = 'middle';
-        fillTextWithSpacing(ctx, State.currentBid.toFixed(3), boxX + boxWidth / 2, bidY, 2.0, 'center', 56);
+        fillTextWithSpacing(ctx, State.currentBid.toFixed(3), boxX + boxWidth / 2, bidY, State.pricesSpacing, 'center', boxWidth - 8);
         ctx.restore();
     }
     
@@ -1161,6 +1183,7 @@ let initialPriceMax = 0;
 let anchorPrice = 0;
 
 function getCandleIndexFromX(x) {
+    MARGIN_RIGHT = State.marginRight;
     const activeCandles = getActiveCandles();
     const totalCount = activeCandles.length;
     if (totalCount === 0) return -1;
@@ -1183,6 +1206,7 @@ function getCandleIndexFromX(x) {
 }
 
 function getXGlobal(candleIndex) {
+    MARGIN_RIGHT = State.marginRight;
     const activeCandles = getActiveCandles();
     const totalCount = activeCandles.length;
     
@@ -1258,6 +1282,7 @@ function distToSegment(px, py, x1, y1, x2, y2) {
 }
 
 function handlePointerDown(e) {
+    MARGIN_RIGHT = State.marginRight;
     // Prevent default browser gestures (zoom/pan)
     if (e.cancelable) {
         e.preventDefault();
@@ -1424,6 +1449,7 @@ function handlePointerDown(e) {
 }
 
 function handlePointerMove(e) {
+    MARGIN_RIGHT = State.marginRight;
     if (e.cancelable) {
         e.preventDefault();
     }
@@ -2835,7 +2861,19 @@ const advancedSettings = {
     'setting-buy-lot-width': { key: 'buyLotWidth', type: 'float', storage: 'mt5_buy_lot_width' },
     'setting-sell-lot-width': { key: 'sellLotWidth', type: 'float', storage: 'mt5_sell_lot_width' },
     'setting-label-spacing': { key: 'labelSpacing', type: 'float', storage: 'mt5_label_spacing' },
+    'setting-lot-spacing': { key: 'lotSpacing', type: 'float', storage: 'mt5_lot_spacing' },
+    'setting-prices-spacing': { key: 'pricesSpacing', type: 'float', storage: 'mt5_prices_spacing' },
+    'setting-time-spacing': { key: 'timeSpacing', type: 'float', storage: 'mt5_time_spacing' },
     'setting-label-gap': { key: 'labelGap', type: 'float', storage: 'mt5_label_gap' },
+    'setting-price-box-width': { key: 'priceBoxWidth', type: 'float', storage: 'mt5_price_box_width' },
+    'setting-price-box-height': { key: 'priceBoxHeight', type: 'float', storage: 'mt5_price_box_height' },
+    'setting-trade-line-width': { key: 'tradeLineWidth', type: 'float', storage: 'mt5_trade_line_width' },
+    'setting-wick-width': { key: 'wickWidth', type: 'float', storage: 'mt5_wick_width' },
+    'setting-margin-right': { key: 'marginRight', type: 'float', storage: 'mt5_margin_right' },
+    'setting-price-axis-offset': { key: 'priceAxisOffset', type: 'float', storage: 'mt5_price_axis_offset' },
+    'setting-price-axis-max-width': { key: 'priceAxisMaxWidth', type: 'float', storage: 'mt5_price_axis_max_width' },
+    'setting-font-size-prices': { key: 'fontSizePrices', type: 'float', storage: 'mt5_font_size_prices' },
+    'setting-prices-scale-x': { key: 'pricesScaleX', type: 'float', storage: 'mt5_prices_scale_x' },
     // Fonts & Weights
     'setting-font-labels': { key: 'fontLabels', type: 'string', storage: 'mt5_font_labels' },
     'setting-font-prices': { key: 'fontPrices', type: 'string', storage: 'mt5_font_prices' },
@@ -2876,24 +2914,57 @@ function initAdvancedSettings() {
     });
 }
 
-// Bind Save and Reset Customizations button actions
-document.getElementById('save-settings-btn').addEventListener('click', () => {
-    // Force save all configurations (normally auto-saved, but reassuring to click)
-    Object.keys(advancedSettings).forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            const config = advancedSettings[id];
-            let val = el.value;
-            if (config.type === 'float') val = parseFloat(val) || 0.0;
-            State[config.key] = val;
-            localStorage.setItem(config.storage, val);
+// Bind Save and Reset Customizations button actions (wrapped in checks to prevent crashes on cached layouts)
+const forceUpdateBtn = document.getElementById('force-update-btn');
+if (forceUpdateBtn) {
+    forceUpdateBtn.addEventListener('click', () => {
+        if (confirm('هل أنت متأكد من رغبتك في تحديث التطبيق وإفراغ الذاكرة المؤقتة (الكاش) بالكامل؟ سيقوم التطبيق بإعادة التشغيل الفوري لتحميل أحدث نسخة.')) {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (let registration of registrations) {
+                        registration.unregister();
+                    }
+                });
+            }
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    for (let name of names) {
+                        caches.delete(name);
+                    }
+                });
+            }
+            for (let i = 1; i <= 20; i++) {
+                localStorage.removeItem('sw_migrated_v' + i);
+            }
+            setTimeout(() => {
+                window.location.reload(true);
+            }, 300);
         }
     });
-    drawChart();
-    alert('تم حفظ جميع إعدادات المظهر والأبعاد والخطوط بنجاح!');
-});
+}
 
-document.getElementById('reset-customizations-btn').addEventListener('click', () => {
+const saveSettingsBtn = document.getElementById('save-settings-btn');
+if (saveSettingsBtn) {
+    saveSettingsBtn.addEventListener('click', () => {
+        // Force save all configurations (normally auto-saved, but reassuring to click)
+        Object.keys(advancedSettings).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                const config = advancedSettings[id];
+                let val = el.value;
+                if (config.type === 'float') val = parseFloat(val) || 0.0;
+                State[config.key] = val;
+                localStorage.setItem(config.storage, val);
+            }
+        });
+        drawChart();
+        alert('تم حفظ جميع إعدادات المظهر والأبعاد والخطوط بنجاح!');
+    });
+}
+
+const resetCustomizationsBtn = document.getElementById('reset-customizations-btn');
+if (resetCustomizationsBtn) {
+    resetCustomizationsBtn.addEventListener('click', () => {
     // Clear only customizable parameters from localStorage
     localStorage.removeItem('mt5_label_height');
     localStorage.removeItem('mt5_buy_width');
@@ -2901,7 +2972,19 @@ document.getElementById('reset-customizations-btn').addEventListener('click', ()
     localStorage.removeItem('mt5_buy_lot_width');
     localStorage.removeItem('mt5_sell_lot_width');
     localStorage.removeItem('mt5_label_spacing');
+    localStorage.removeItem('mt5_lot_spacing');
+    localStorage.removeItem('mt5_prices_spacing');
+    localStorage.removeItem('mt5_time_spacing');
     localStorage.removeItem('mt5_label_gap');
+    localStorage.removeItem('mt5_price_box_width');
+    localStorage.removeItem('mt5_price_box_height');
+    localStorage.removeItem('mt5_trade_line_width');
+    localStorage.removeItem('mt5_wick_width');
+    localStorage.removeItem('mt5_margin_right');
+    localStorage.removeItem('mt5_price_axis_offset');
+    localStorage.removeItem('mt5_price_axis_max_width');
+    localStorage.removeItem('mt5_font_size_prices');
+    localStorage.removeItem('mt5_prices_scale_x');
     localStorage.removeItem('mt5_font_labels');
     localStorage.removeItem('mt5_font_prices');
     localStorage.removeItem('mt5_font_time');
@@ -2921,7 +3004,19 @@ document.getElementById('reset-customizations-btn').addEventListener('click', ()
     State.buyLotWidth = 21;
     State.sellLotWidth = 23;
     State.labelSpacing = 2.0;
+    State.lotSpacing = 0;
+    State.pricesSpacing = 2.0;
+    State.timeSpacing = 0;
     State.labelGap = 6;
+    State.priceBoxWidth = 64;
+    State.priceBoxHeight = 14;
+    State.tradeLineWidth = 0.5;
+    State.wickWidth = 0.25;
+    State.marginRight = 68;
+    State.priceAxisOffset = 6;
+    State.priceAxisMaxWidth = 56;
+    State.fontSizePrices = 11;
+    State.pricesScaleX = 1.0;
     State.fontLabels = '"Helvetica Neue", Helvetica, Arial, sans-serif';
     State.fontPrices = '"SF Pro Display", -apple-system, sans-serif';
     State.fontTime = '"SF Pro Display", -apple-system, sans-serif';
@@ -2929,16 +3024,17 @@ document.getElementById('reset-customizations-btn').addEventListener('click', ()
     State.weightPrices = '400';
     State.weightTime = '400';
     State.colorBuyLabel = '#3c99ff';
-    State.colorBuyText = '#ffffff';
+    State.colorBuyText = '#3c99ff';
     State.colorSellWord = '#dd5e56';
     State.colorSellLine = '#e73d2b';
-    State.colorSellText = '#ffffff';
+    State.colorSellText = '#dd5e56';
     
     // Refresh inputs on screen
     initAdvancedSettings();
     drawChart();
     alert('تم إعادة تعيين أبعاد وخطوط وألوان صفقات BUY/SELL والأسعار الافتراضية.');
-});
+    });
+}
 
 // Dynamically aggregate base candles into target timeframe intervals
 function aggregateCandles(baseCandles, targetMinutes) {
@@ -3351,8 +3447,8 @@ function finalizeInit() {
     updateTradingPanelUI();
     updatePositionsProfit();
     
-    // Force clean old service worker cache on first load of version 11
-    if (!localStorage.getItem('sw_migrated_v11')) {
+    // Force clean old service worker cache on first load of version 16
+    if (!localStorage.getItem('sw_migrated_v16')) {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(registrations => {
                 for (let registration of registrations) {
@@ -3365,7 +3461,7 @@ function finalizeInit() {
                 for (let name of names) caches.delete(name);
             });
         }
-        localStorage.setItem('sw_migrated_v11', 'true');
+        localStorage.setItem('sw_migrated_v16', 'true');
         setTimeout(() => {
             window.location.reload(true); // Force reload to fetch everything fresh
         }, 200);
@@ -3374,7 +3470,7 @@ function finalizeInit() {
 
     // Register PWA Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=11')
+        navigator.serviceWorker.register('./sw.js?v=16')
             .then(() => console.log('PWA Service Worker Registered'))
             .catch(err => console.log('Service Worker Registration Failed:', err));
     }
