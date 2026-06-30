@@ -62,8 +62,8 @@ const State = {
     // Customizable Chart Colors
     colors: JSON.parse(localStorage.getItem('mt5_chart_colors')) || {
         bg: '#ffffff',
-        foreground: '#6e717a',
-        grid: '#e2e2e4',
+        foreground: '#474747',
+        grid: '#C2C2C2',
         barUp: '#375EEB',
         barDown: '#D03A20',
         bull: '#375EEB',
@@ -76,22 +76,22 @@ const State = {
     },
     
     // Advanced Customizations (Labels Sizing, Fonts, Trade Colors)
-    labelHeight: parseFloat(localStorage.getItem('mt5_label_height')) || 12,
+    labelHeight: parseFloat(localStorage.getItem('mt5_label_height')) || 11,
     buyWidth: parseFloat(localStorage.getItem('mt5_buy_width')) || 23,
-    sellWidth: parseFloat(localStorage.getItem('mt5_sell_width')) || 27,
-    buyLotWidth: parseFloat(localStorage.getItem('mt5_buy_lot_width')) || 21,
+    sellWidth: parseFloat(localStorage.getItem('mt5_sell_width')) || 28,
+    buyLotWidth: parseFloat(localStorage.getItem('mt5_buy_lot_width')) || 25,
     sellLotWidth: parseFloat(localStorage.getItem('mt5_sell_lot_width')) || 23,
     labelSpacing: parseFloat(localStorage.getItem('mt5_label_spacing')) || 2.0,
     labelGap: parseFloat(localStorage.getItem('mt5_label_gap')) || 6,
     
     // Spacings for numbers
-    lotSpacing: parseFloat(localStorage.getItem('mt5_lot_spacing')) || 0,
-    pricesSpacing: parseFloat(localStorage.getItem('mt5_prices_spacing')) || 2.0,
+    lotSpacing: parseFloat(localStorage.getItem('mt5_lot_spacing')) || 0.5,
+    pricesSpacing: parseFloat(localStorage.getItem('mt5_prices_spacing')) || 0.5,
     timeSpacing: parseFloat(localStorage.getItem('mt5_time_spacing')) || 0,
     
     // Elements sizes & thicknesses
     priceBoxWidth: parseFloat(localStorage.getItem('mt5_price_box_width')) || 64,
-    priceBoxHeight: parseFloat(localStorage.getItem('mt5_price_box_height')) || 14,
+    priceBoxHeight: parseFloat(localStorage.getItem('mt5_price_box_height')) || 13,
     tradeLineWidth: parseFloat(localStorage.getItem('mt5_trade_line_width')) || 0.5,
     wickWidth: parseFloat(localStorage.getItem('mt5_wick_width')) || 0.25,
     
@@ -103,23 +103,23 @@ const State = {
     pricesScaleX: parseFloat(localStorage.getItem('mt5_prices_scale_x')) || 1.0,
     
     // Position label price box customizations (defaults match regular prices)
-    fontSizeLabelPrices: parseFloat(localStorage.getItem('mt5_font_size_label_prices')) || 12,
+    fontSizeLabelPrices: parseFloat(localStorage.getItem('mt5_font_size_label_prices')) || 10.5,
     labelPricesScaleX: parseFloat(localStorage.getItem('mt5_label_prices_scale_x')) || 1.0,
-    labelPricesSpacing: parseFloat(localStorage.getItem('mt5_label_prices_spacing')) || 2.0,
+    labelPricesSpacing: parseFloat(localStorage.getItem('mt5_label_prices_spacing')) || 1.0,
     
-    fontLabels: localStorage.getItem('mt5_font_labels') || '"Helvetica Neue", Helvetica, Arial, sans-serif',
-    fontPrices: localStorage.getItem('mt5_font_prices') || '"SF Pro Display", -apple-system, sans-serif',
-    fontTime: localStorage.getItem('mt5_font_time') || '"SF Pro Display", -apple-system, sans-serif',
+    fontLabels: localStorage.getItem('mt5_font_labels') || '"SF Pro Display", -apple-system, sans-serif',
+    fontPrices: localStorage.getItem('mt5_font_prices') || '"SF Pro Text", -apple-system, sans-serif',
+    fontTime: localStorage.getItem('mt5_font_time') || '"SF Pro Text", -apple-system, sans-serif',
     
     weightLabels: localStorage.getItem('mt5_weight_labels') || '400',
-    weightPrices: localStorage.getItem('mt5_weight_prices') || '400',
+    weightPrices: localStorage.getItem('mt5_weight_prices') || '450',
     weightTime: localStorage.getItem('mt5_weight_time') || '400',
     
-    colorBuyLabel: localStorage.getItem('mt5_color_buy_label') || '#3c99ff',
-    colorBuyText: localStorage.getItem('mt5_color_buy_text') || '#3c99ff',
-    colorSellWord: localStorage.getItem('mt5_color_sell_word') || '#dd5e56',
-    colorSellLine: localStorage.getItem('mt5_color_sell_line') || '#e73d2b',
-    colorSellText: localStorage.getItem('mt5_color_sell_text') || '#dd5e56'
+    colorBuyLabel: localStorage.getItem('mt5_color_buy_label') || '#3C81FF',
+    colorBuyText: localStorage.getItem('mt5_color_buy_text') || '#3C81FF',
+    colorSellWord: localStorage.getItem('mt5_color_sell_word') || '#E94015',
+    colorSellLine: localStorage.getItem('mt5_color_sell_line') || '#E94015',
+    colorSellText: localStorage.getItem('mt5_color_sell_text') || '#E94015'
 };
 
 // --- DOM ELEMENTS ---
@@ -2568,8 +2568,8 @@ document.getElementById('prop-delete-btn').addEventListener('click', () => {
 const presets = {
     default: {
         bg: '#ffffff',
-        foreground: '#6e717a',
-        grid: '#e2e2e4',
+        foreground: '#474747',
+        grid: '#C2C2C2',
         barUp: '#375EEB',
         barDown: '#D03A20',
         bull: '#375EEB',
@@ -3461,8 +3461,8 @@ function finalizeInit() {
     updateTradingPanelUI();
     updatePositionsProfit();
     
-    // Force clean old service worker cache on first load of version 17
-    if (!localStorage.getItem('sw_migrated_v17')) {
+    // Force clean old service worker cache on first load of version 18
+    if (!localStorage.getItem('sw_migrated_v18')) {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(registrations => {
                 for (let registration of registrations) {
@@ -3475,7 +3475,7 @@ function finalizeInit() {
                 for (let name of names) caches.delete(name);
             });
         }
-        localStorage.setItem('sw_migrated_v17', 'true');
+        localStorage.setItem('sw_migrated_v18', 'true');
         setTimeout(() => {
             window.location.reload(true); // Force reload to fetch everything fresh
         }, 200);
@@ -3484,7 +3484,7 @@ function finalizeInit() {
 
     // Register PWA Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=17')
+        navigator.serviceWorker.register('./sw.js?v=18')
             .then(() => console.log('PWA Service Worker Registered'))
             .catch(err => console.log('Service Worker Registration Failed:', err));
     }
