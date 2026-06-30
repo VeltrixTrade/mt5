@@ -770,16 +770,16 @@ function drawChartFrame() {
         ctx.font = '400 12px "Helvetica Neue", Helvetica, Arial, sans-serif'; // Reverted back to Helvetica Neue 400 weight as requested
         ctx.textAlign = 'left';
         ctx.textBaseline = 'bottom';
-        ctx.letterSpacing = '2px'; // Set letter-spacing to 2px as requested
+        ctx.letterSpacing = '2px'; // Set letter-spacing to 2px for the words as requested
         
         const lotText = pos.lot % 1 === 0 ? pos.lot.toFixed(2) : pos.lot.toString();
         const typeText = pos.type; // "BUY" or "SELL"
         
         // Exact pixel scaling requested by the user
-        const typeWidth = typeText === 'BUY' ? 23 : 27; // BUY alone is 23px, SELL alone is 27px
-        const lotWidth = typeText === 'BUY' ? 25 : 24;  // BUY lot width is 25px (23 + 5 gap + 25 = 53px total), SELL lot width is 24px (27 + 5 gap + 24 = 56px total)
+        const typeWidth = typeText === 'BUY' ? 23 : 27; // BUY alone is exactly 23px, SELL alone is exactly 27px
+        const lotWidth = typeText === 'BUY' ? 21 : 23;  // BUY lot is 21px (23 + 6 gap + 21 = 50px total), SELL lot is 23px (27 + 6 gap + 23 = 56px total)
         
-        // Draw type text (BUY or SELL)
+        // Draw type text (BUY or SELL) with 2px letter-spacing
         const typeNaturalWidth = ctx.measureText(typeText).width;
         ctx.save();
         ctx.translate(5, y - 2); // 5px left margin, 2px above line
@@ -787,10 +787,11 @@ function drawChartFrame() {
         ctx.fillText(typeText, 0, 0);
         ctx.restore();
         
-        // Draw lot size text (e.g., "0.08") next to it with exactly 5px gap
+        // Draw lot size text (e.g., "0.08") next to it with normal spacing and exactly 6px gap
+        ctx.letterSpacing = 'normal'; // Reset spacing to normal for lot size
         const lotNaturalWidth = ctx.measureText(lotText).width;
         ctx.save();
-        ctx.translate(5 + typeWidth + 5, y - 2); // Placed exactly after the word plus a 5px gap
+        ctx.translate(5 + typeWidth + 6, y - 2); // Placed exactly after the word plus a 6px gap
         ctx.scale(lotWidth / lotNaturalWidth, 1); // Scale horizontally to force exact pixel width for the lot
         ctx.fillText(lotText, 0, 0);
         ctx.restore();
@@ -3149,8 +3150,8 @@ function finalizeInit() {
     updateTradingPanelUI();
     updatePositionsProfit();
     
-    // Force clean old service worker cache on first load of version 4
-    if (!localStorage.getItem('sw_migrated_v4')) {
+    // Force clean old service worker cache on first load of version 7
+    if (!localStorage.getItem('sw_migrated_v7')) {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(registrations => {
                 for (let registration of registrations) {
@@ -3163,7 +3164,7 @@ function finalizeInit() {
                 for (let name of names) caches.delete(name);
             });
         }
-        localStorage.setItem('sw_migrated_v4', 'true');
+        localStorage.setItem('sw_migrated_v7', 'true');
         setTimeout(() => {
             window.location.reload(true); // Force reload to fetch everything fresh
         }, 200);
@@ -3172,7 +3173,7 @@ function finalizeInit() {
 
     // Register PWA Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=4')
+        navigator.serviceWorker.register('./sw.js?v=7')
             .then(() => console.log('PWA Service Worker Registered'))
             .catch(err => console.log('Service Worker Registration Failed:', err));
     }
