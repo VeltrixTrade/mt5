@@ -770,7 +770,7 @@ function drawChartFrame() {
         ctx.font = '400 12px "Helvetica Neue", Helvetica, Arial, sans-serif'; // Reverted back to Helvetica Neue 400 weight as requested
         ctx.textAlign = 'left';
         ctx.textBaseline = 'bottom';
-        ctx.letterSpacing = 'normal'; // Standard spacing
+        ctx.letterSpacing = '2px'; // Set letter-spacing to 2px as requested
         
         const lotText = pos.lot % 1 === 0 ? pos.lot.toFixed(2) : pos.lot.toString();
         const typeText = pos.type; // "BUY" or "SELL"
