@@ -12,7 +12,12 @@
     <meta name="apple-mobile-web-app-title" content="مبت تريدر 5">
     <link rel="apple-touch-icon" href="public/icon-192.png">
     
-    <link rel="stylesheet" href="styles.css?v=7">
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Lato:wght@400;700&family=Montserrat:wght@400;500;700&family=Open+Sans:wght@400;600&family=Outfit:wght@400;500;700&family=Poppins:wght@400;500;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body>
     <div class="iphone-frame">
@@ -292,6 +297,185 @@
                         </div>
 
                         <div class="settings-group">
+                            <div class="settings-title">أبعاد صفقات BUY / SELL (بالبكسل)</div>
+                            <div class="settings-item">
+                                <span>الارتفاع المرئي للكلمات</span>
+                                <input type="number" id="setting-label-height" value="12" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>عرض كلمة BUY</span>
+                                <input type="number" id="setting-buy-width" value="23" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>عرض كلمة SELL</span>
+                                <input type="number" id="setting-sell-width" value="27" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>عرض لوت BUY (عقد)</span>
+                                <input type="number" id="setting-buy-lot-width" value="21" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>عرض لوت SELL (عقد)</span>
+                                <input type="number" id="setting-sell-lot-width" value="23" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>تباعد الحروف للكلمة</span>
+                                <input type="number" id="setting-label-spacing" value="2" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>المسافة بين الكلمة واللوت</span>
+                                <input type="number" id="setting-label-gap" value="6" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <div class="settings-title">تخصيص أنواع الخطوط والسماكة (Fonts & Weight)</div>
+                            <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 4px;">
+                                <span>خط صفقات الشراء والبيع (BUY/SELL)</span>
+                                <select id="setting-font-labels" class="settings-select">
+                                    <option value="system-ui">خط النظام الافتراضي (System Default)</option>
+                                    <option value='"SF Pro Display", -apple-system, sans-serif'>SF Pro Display (أبل)</option>
+                                    <option value='"SF Pro Text", -apple-system, sans-serif'>SF Pro Text (أبل)</option>
+                                    <option value='"Helvetica Neue", Helvetica, sans-serif' selected>Helvetica Neue (أبل)</option>
+                                    <option value='"Helvetica", sans-serif'>Helvetica</option>
+                                    <option value='"Inter", sans-serif'>Inter (راقٍ)</option>
+                                    <option value='"Outfit", sans-serif'>Outfit (حديث)</option>
+                                    <option value='"Poppins", sans-serif'>Poppins (دائري)</option>
+                                    <option value='"Montserrat", sans-serif'>Montserrat</option>
+                                    <option value='"Roboto", sans-serif'>Roboto (أندرويد)</option>
+                                    <option value='"Open Sans", sans-serif'>Open Sans</option>
+                                    <option value='"Lato", sans-serif'>Lato</option>
+                                    <option value='"Segoe UI", sans-serif'>Segoe UI (ويندوز)</option>
+                                    <option value='"Arial", sans-serif'>Arial (كلاسيكي)</option>
+                                    <option value='"Avenir Next", "Avenir", sans-serif'>Avenir Next</option>
+                                    <option value='"Trebuchet MS", sans-serif'>Trebuchet MS</option>
+                                    <option value='"Geneva", sans-serif'>Geneva</option>
+                                    <option value='"Verdana", sans-serif'>Verdana</option>
+                                    <option value='"Tahoma", sans-serif'>Tahoma</option>
+                                    <option value='sans-serif'>Sans-Serif الافتراضي</option>
+                                </select>
+                            </div>
+                            <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 4px; margin-top: 10px;">
+                                <span>سماكة خط صفقات BUY/SELL (Weight)</span>
+                                <select id="setting-weight-labels" class="settings-select">
+                                    <option value="100">100 (نحيف جداً - Thin)</option>
+                                    <option value="200">200 (خفيف للغاية - Extra Light)</option>
+                                    <option value="300">300 (خفيف - Light)</option>
+                                    <option value="400" selected>400 (عادي - Normal)</option>
+                                    <option value="500">500 (متوسط - Medium)</option>
+                                    <option value="600">600 (شبه سميك - Semi-Bold)</option>
+                                    <option value="700">700 (سميك - Bold)</option>
+                                    <option value="800">800 (سميك للغاية - Extra Bold)</option>
+                                    <option value="900">900 (سميك جداً - Black)</option>
+                                </select>
+                            </div>
+                            <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 4px; margin-top: 10px;">
+                                <span>خط عمود الأسعار الجانبي (Prices Scale)</span>
+                                <select id="setting-font-prices" class="settings-select">
+                                    <option value="system-ui">خط النظام الافتراضي (System Default)</option>
+                                    <option value='"SF Pro Display", -apple-system, sans-serif' selected>SF Pro Display (أبل)</option>
+                                    <option value='"SF Pro Text", -apple-system, sans-serif'>SF Pro Text (أبل)</option>
+                                    <option value='"Helvetica Neue", Helvetica, sans-serif'>Helvetica Neue (أبل)</option>
+                                    <option value='"Helvetica", sans-serif'>Helvetica</option>
+                                    <option value='"Inter", sans-serif'>Inter (راقٍ)</option>
+                                    <option value='"Outfit", sans-serif'>Outfit (حديث)</option>
+                                    <option value='"Poppins", sans-serif'>Poppins (دائري)</option>
+                                    <option value='"Montserrat", sans-serif'>Montserrat</option>
+                                    <option value='"Roboto", sans-serif'>Roboto (أندرويد)</option>
+                                    <option value='"Open Sans", sans-serif'>Open Sans</option>
+                                    <option value='"Lato", sans-serif'>Lato</option>
+                                    <option value='"Segoe UI", sans-serif'>Segoe UI (ويندوز)</option>
+                                    <option value='"Arial", sans-serif'>Arial (كلاسيكي)</option>
+                                    <option value='"Avenir Next", "Avenir", sans-serif'>Avenir Next</option>
+                                    <option value='"Trebuchet MS", sans-serif'>Trebuchet MS</option>
+                                    <option value='"Geneva", sans-serif'>Geneva</option>
+                                    <option value='"Verdana", sans-serif'>Verdana</option>
+                                    <option value='"Tahoma", sans-serif'>Tahoma</option>
+                                    <option value='sans-serif'>Sans-Serif الافتراضي</option>
+                                </select>
+                            </div>
+                            <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 4px; margin-top: 10px;">
+                                <span>سماكة خط الأسعار (Weight)</span>
+                                <select id="setting-weight-prices" class="settings-select">
+                                    <option value="100">100 (نحيف جداً - Thin)</option>
+                                    <option value="200">200 (خفيف للغاية - Extra Light)</option>
+                                    <option value="300">300 (خفيف - Light)</option>
+                                    <option value="400" selected>400 (عادي - Normal)</option>
+                                    <option value="500">500 (متوسط - Medium)</option>
+                                    <option value="600">600 (شبه سميك - Semi-Bold)</option>
+                                    <option value="700">700 (سميك - Bold)</option>
+                                    <option value="800">800 (سميك للغاية - Extra Bold)</option>
+                                    <option value="900">900 (سميك جداً - Black)</option>
+                                </select>
+                            </div>
+                            <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 4px; margin-top: 10px;">
+                                <span>خط توقيت الشموع السفلي (Time Scale)</span>
+                                <select id="setting-font-time" class="settings-select">
+                                    <option value="system-ui">خط النظام الافتراضي (System Default)</option>
+                                    <option value='"SF Pro Display", -apple-system, sans-serif' selected>SF Pro Display (أبل)</option>
+                                    <option value='"SF Pro Text", -apple-system, sans-serif'>SF Pro Text (أبل)</option>
+                                    <option value='"Helvetica Neue", Helvetica, sans-serif'>Helvetica Neue (أبل)</option>
+                                    <option value='"Helvetica", sans-serif'>Helvetica</option>
+                                    <option value='"Inter", sans-serif'>Inter (راقٍ)</option>
+                                    <option value='"Outfit", sans-serif'>Outfit (حديث)</option>
+                                    <option value='"Poppins", sans-serif'>Poppins (دائري)</option>
+                                    <option value='"Montserrat", sans-serif'>Montserrat</option>
+                                    <option value='"Roboto", sans-serif'>Roboto (أندرويد)</option>
+                                    <option value='"Open Sans", sans-serif'>Open Sans</option>
+                                    <option value='"Lato", sans-serif'>Lato</option>
+                                    <option value='"Segoe UI", sans-serif'>Segoe UI (ويندوز)</option>
+                                    <option value='"Arial", sans-serif'>Arial (كلاسيكي)</option>
+                                    <option value='"Avenir Next", "Avenir", sans-serif'>Avenir Next</option>
+                                    <option value='"Trebuchet MS", sans-serif'>Trebuchet MS</option>
+                                    <option value='"Geneva", sans-serif'>Geneva</option>
+                                    <option value='"Verdana", sans-serif'>Verdana</option>
+                                    <option value='"Tahoma", sans-serif'>Tahoma</option>
+                                    <option value='sans-serif'>Sans-Serif الافتراضي</option>
+                                </select>
+                            </div>
+                            <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 4px; margin-top: 10px;">
+                                <span>سماكة خط توقيت الشموع (Weight)</span>
+                                <select id="setting-weight-time" class="settings-select">
+                                    <option value="100">100 (نحيف جداً - Thin)</option>
+                                    <option value="200">200 (خفيف للغاية - Extra Light)</option>
+                                    <option value="300">300 (خفيف - Light)</option>
+                                    <option value="400" selected>400 (عادي - Normal)</option>
+                                    <option value="500">500 (متوسط - Medium)</option>
+                                    <option value="600">600 (شبه سميك - Semi-Bold)</option>
+                                    <option value="700">700 (سميك - Bold)</option>
+                                    <option value="800">800 (سميك للغاية - Extra Bold)</option>
+                                    <option value="900">900 (سميك جداً - Black)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <div class="settings-title">ألوان صفقات BUY / SELL والملصقات</div>
+                            <div class="settings-color-container">
+                                <div class="settings-color-item">
+                                    <span>خط وكلمة الشراء BUY</span>
+                                    <input type="color" id="setting-color-buy-label" value="#3c99ff">
+                                </div>
+                                <div class="settings-color-item">
+                                    <span>نص سعر الشراء (داخل المربع الأيمن)</span>
+                                    <input type="color" id="setting-color-buy-text" value="#ffffff">
+                                </div>
+                                <div class="settings-color-item">
+                                    <span>كلمة البيع SELL</span>
+                                    <input type="color" id="setting-color-sell-word" value="#dd5e56">
+                                </div>
+                                <div class="settings-color-item">
+                                    <span>خط وإطار البيع SELL</span>
+                                    <input type="color" id="setting-color-sell-line" value="#e73d2b">
+                                </div>
+                                <div class="settings-color-item">
+                                    <span>نص سعر البيع (داخل المربع الأيمن)</span>
+                                    <input type="color" id="setting-color-sell-text" value="#ffffff">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
                             <div class="settings-title">الألوان (Colors)</div>
                             <div class="settings-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
                                 <span style="font-weight: bold; font-size: 12px; color: #8e8e93;">النماذج الجاهزة (Presets)</span>
@@ -351,6 +535,14 @@
                                     <span>مستويات توقف</span>
                                     <input type="color" id="color-stop-levels" value="#d50000">
                                 </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <div class="settings-title">حفظ وإعادة تعيين التخصيصات (Save & Reset)</div>
+                            <div style="padding: 15px; display: flex; flex-direction: column; gap: 10px;">
+                                <button class="settings-btn" id="save-settings-btn" style="background-color: #34c759; margin: 0; width: 100%;">حفظ جميع الإعدادات (Save Settings)</button>
+                                <button class="settings-btn" id="reset-customizations-btn" style="background-color: #ff9500; margin: 0; width: 100%;">إعادة تعيين تخصيصات المظهر والخطوط فقط</button>
                             </div>
                         </div>
 
@@ -443,6 +635,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=7"></script>
+    <script src="app.js?v=11"></script>
 </body>
 </html>

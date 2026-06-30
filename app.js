@@ -73,7 +73,30 @@ const State = {
         bidLine: '#52A49A',
         askLine: '#DD5E56',
         stopLevels: '#d50000'
-    }
+    },
+    
+    // Advanced Customizations (Labels Sizing, Fonts, Trade Colors)
+    labelHeight: parseFloat(localStorage.getItem('mt5_label_height')) || 12,
+    buyWidth: parseFloat(localStorage.getItem('mt5_buy_width')) || 23,
+    sellWidth: parseFloat(localStorage.getItem('mt5_sell_width')) || 27,
+    buyLotWidth: parseFloat(localStorage.getItem('mt5_buy_lot_width')) || 21,
+    sellLotWidth: parseFloat(localStorage.getItem('mt5_sell_lot_width')) || 23,
+    labelSpacing: parseFloat(localStorage.getItem('mt5_label_spacing')) || 2.0,
+    labelGap: parseFloat(localStorage.getItem('mt5_label_gap')) || 6,
+    
+    fontLabels: localStorage.getItem('mt5_font_labels') || '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    fontPrices: localStorage.getItem('mt5_font_prices') || '"SF Pro Display", -apple-system, sans-serif',
+    fontTime: localStorage.getItem('mt5_font_time') || '"SF Pro Display", -apple-system, sans-serif',
+    
+    weightLabels: localStorage.getItem('mt5_weight_labels') || '400',
+    weightPrices: localStorage.getItem('mt5_weight_prices') || '400',
+    weightTime: localStorage.getItem('mt5_weight_time') || '400',
+    
+    colorBuyLabel: localStorage.getItem('mt5_color_buy_label') || '#3c99ff',
+    colorBuyText: localStorage.getItem('mt5_color_buy_text') || '#ffffff',
+    colorSellWord: localStorage.getItem('mt5_color_sell_word') || '#dd5e56',
+    colorSellLine: localStorage.getItem('mt5_color_sell_line') || '#e73d2b',
+    colorSellText: localStorage.getItem('mt5_color_sell_text') || '#ffffff'
 };
 
 // --- DOM ELEMENTS ---
@@ -401,7 +424,7 @@ function drawChartFrame() {
     ctx.strokeStyle = State.colors.grid;
     ctx.lineWidth = 0.5;
     ctx.setLineDash([1, 2]); // dotted lines
-    ctx.font = '400 12px ' + FONT_STACK;
+    ctx.font = State.weightPrices + ' 12px ' + State.fontPrices;
     ctx.fillStyle = State.colors.foreground;
     
     // Price grid lines: 15 labels, spaced to fit exactly 99px top offset and 135px bottom offset.
@@ -462,7 +485,7 @@ function drawChartFrame() {
         
         if (index < targetXPositions.length - 1) {
             ctx.textAlign = 'left';
-            ctx.font = '11px ' + FONT_STACK;
+            ctx.font = State.weightTime + ' 11px ' + State.fontTime;
             ctx.fillStyle = State.colors.foreground;
             // Draw time label aligned to drawX
             ctx.fillText(timeInfo.timeLabel, drawX + 3, MARGIN_TOP + chartHeight + 14, 73);
@@ -743,14 +766,15 @@ function drawChartFrame() {
         
         const isBuy = pos.type === 'BUY';
         
-        // Colors & fonts matching MT5 on iPhone 100%
-        const textColor = isBuy ? '#3c99ff' : '#e73d2b';
-        const strokeColor = isBuy ? '#3c99ff' : '#e73d2b';
-        const boxBgColor = '#FFFFFF';
+        // Colors & fonts fully customizable from settings
+        const typeColor = isBuy ? State.colorBuyLabel : State.colorSellWord;
+        const lotColor = typeColor; // Both word and lot size on the left use the same label color!
+        const lineColor = isBuy ? State.colorBuyLabel : State.colorSellLine;
+        const priceTextColor = isBuy ? State.colorBuyText : State.colorSellText; // Price text inside solid box
         
         ctx.save();
         ctx.globalAlpha = 0.7 * pos.opacity; // Opacity 0.7 for dashed line
-        ctx.strokeStyle = strokeColor;
+        ctx.strokeStyle = lineColor;
         ctx.setLineDash([4, 4]); // Dash pattern: 4px dash, 4px gap
         ctx.lineWidth = 0.5;      // Stroke width: 0.5px
         
@@ -766,32 +790,61 @@ function drawChartFrame() {
         // 2. Draw Text (BUY [lotSize] or SELL [lotSize]) slightly above the dashed line
         ctx.save();
         ctx.globalAlpha = pos.opacity;
-        ctx.fillStyle = textColor;
-        ctx.font = '400 12px "Helvetica Neue", Helvetica, Arial, sans-serif'; // Reverted back to Helvetica Neue 400 weight as requested
+        ctx.font = State.weightLabels + ' ' + State.labelHeight + 'px ' + State.fontLabels;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'bottom';
-        ctx.letterSpacing = '2px'; // Set letter-spacing to 2px for the words as requested
         
         const lotText = pos.lot % 1 === 0 ? pos.lot.toFixed(2) : pos.lot.toString();
         const typeText = pos.type; // "BUY" or "SELL"
         
-        // Exact pixel scaling requested by the user
-        const typeWidth = typeText === 'BUY' ? 23 : 27; // BUY alone is exactly 23px, SELL alone is exactly 27px
-        const lotWidth = typeText === 'BUY' ? 21 : 23;  // BUY lot is 21px (23 + 6 gap + 21 = 50px total), SELL lot is 23px (27 + 6 gap + 23 = 56px total)
+        // Exact pixel scaling loaded dynamically from Settings
+        const typeWidth = typeText === 'BUY' ? State.buyWidth : State.sellWidth;
+        const lotWidth = typeText === 'BUY' ? State.buyLotWidth : State.sellLotWidth;
         
-        // Draw type text (BUY or SELL) with 2px letter-spacing
-        const typeNaturalWidth = ctx.measureText(typeText).width;
+        // Draw type text (BUY or SELL) with custom letter-spacing
+        // Character-by-character rendering for universal compatibility on mobile browsers (iOS Safari)
         ctx.save();
+        ctx.fillStyle = typeColor;
         ctx.translate(5, y - 2); // 5px left margin, 2px above line
-        ctx.scale(typeWidth / typeNaturalWidth, 1); // Scale horizontally to force exact pixel width for the word
-        ctx.fillText(typeText, 0, 0);
+        
+        // 1. Calculate natural width of characters without spacing
+        let charNaturalWidths = [];
+        let totalCharNaturalWidth = 0;
+        for (let i = 0; i < typeText.length; i++) {
+            const w = ctx.measureText(typeText[i]).width;
+            charNaturalWidths.push(w);
+            totalCharNaturalWidth += w;
+        }
+        
+        // 2. We have exactly typeText.length - 1 gaps
+        const numGaps = typeText.length - 1;
+        const totalGapWidth = numGaps * State.labelSpacing; // spacing from Settings
+        
+        // 3. The letters themselves must occupy exactly typeWidth - totalGapWidth
+        const targetCharWidth = typeWidth - totalGapWidth;
+        const scaleX = targetCharWidth / totalCharNaturalWidth;
+        
+        // 4. Draw each character individually
+        let currentX = 0;
+        for (let i = 0; i < typeText.length; i++) {
+            const char = typeText[i];
+            const charW = charNaturalWidths[i];
+            
+            ctx.save();
+            ctx.translate(currentX, 0);
+            ctx.scale(scaleX, 1);
+            ctx.fillText(char, 0, 0);
+            ctx.restore();
+            
+            currentX += charW * scaleX + State.labelSpacing; // Advance cursor by scaled character width + spacing gap
+        }
         ctx.restore();
         
-        // Draw lot size text (e.g., "0.08") next to it with normal spacing and exactly 6px gap
-        ctx.letterSpacing = 'normal'; // Reset spacing to normal for lot size
+        // Draw lot size text (e.g., "0.08") next to it with normal spacing and exact gap from Settings
         const lotNaturalWidth = ctx.measureText(lotText).width;
         ctx.save();
-        ctx.translate(5 + typeWidth + 6, y - 2); // Placed exactly after the word plus a 6px gap
+        ctx.fillStyle = lotColor;
+        ctx.translate(5 + typeWidth + State.labelGap, y - 2); // Placed exactly after the word plus configured gap
         ctx.scale(lotWidth / lotNaturalWidth, 1); // Scale horizontally to force exact pixel width for the lot
         ctx.fillText(lotText, 0, 0);
         ctx.restore();
@@ -802,24 +855,19 @@ function drawChartFrame() {
         ctx.save();
         ctx.globalAlpha = pos.opacity;
         
-        ctx.font = '400 12px ' + FONT_STACK;
+        ctx.font = State.weightPrices + ' 12px ' + State.fontPrices;
         const priceText = pos.openPrice.toFixed(3);
         
         const boxWidth = 64; // Width: 64px (matching Bid/Ask price box width)
         const boxHeight = 14; // Height: 14px
         const boxY = y - boxHeight / 2; // Center vertically
         
-        // Draw background
-        ctx.fillStyle = boxBgColor;
+        // Draw solid background
+        ctx.fillStyle = lineColor;
         ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
         
-        // Draw border: 1px Solid (lineWidth 0.5 for softer/thinner look)
-        ctx.strokeStyle = textColor;
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(boxX + 0.5, boxY + 0.5, boxWidth - 1, boxHeight - 1);
-        
-        // Draw price text (limited to 56px width max)
-        ctx.fillStyle = textColor;
+        // Draw price text (limited to 56px width max) inside the solid box
+        ctx.fillStyle = priceTextColor;
         ctx.textBaseline = 'middle';
         fillTextWithSpacing(ctx, priceText, boxX + boxWidth / 2, y + 0.5, 2.0, 'center', 56);
         ctx.restore();
@@ -850,7 +898,7 @@ function drawChartFrame() {
         ctx.fillStyle = State.colors.askLine;
         ctx.fillRect(boxX, boxY, boxWidth, boxHeight);        // Price text
         ctx.fillStyle = '#ffffff';
-        ctx.font = '400 12px ' + FONT_STACK;
+        ctx.font = State.weightPrices + ' 12px ' + State.fontPrices;
         ctx.textBaseline = 'middle';
         fillTextWithSpacing(ctx, State.currentAsk.toFixed(3), boxX + boxWidth / 2, askY, 2.0, 'center', 56);
         ctx.restore();
@@ -881,7 +929,7 @@ function drawChartFrame() {
         
         // Price text
         ctx.fillStyle = '#ffffff';
-        ctx.font = '400 12px ' + FONT_STACK;
+        ctx.font = State.weightPrices + ' 12px ' + State.fontPrices;
         ctx.textBaseline = 'middle';
         fillTextWithSpacing(ctx, State.currentBid.toFixed(3), boxX + boxWidth / 2, bidY, 2.0, 'center', 56);
         ctx.restore();
@@ -2694,8 +2742,46 @@ resetDataBtn.addEventListener('click', () => {
     localStorage.removeItem('mt5_chart_colors');
     localStorage.removeItem('mt5_drawings');
     localStorage.removeItem('mt5_dark_mode');
+    
+    // Clear advanced customizations from localStorage
+    localStorage.removeItem('mt5_label_height');
+    localStorage.removeItem('mt5_buy_width');
+    localStorage.removeItem('mt5_sell_width');
+    localStorage.removeItem('mt5_buy_lot_width');
+    localStorage.removeItem('mt5_sell_lot_width');
+    localStorage.removeItem('mt5_label_spacing');
+    localStorage.removeItem('mt5_label_gap');
+    localStorage.removeItem('mt5_font_labels');
+    localStorage.removeItem('mt5_font_prices');
+    localStorage.removeItem('mt5_font_time');
+    localStorage.removeItem('mt5_color_buy_label');
+    localStorage.removeItem('mt5_color_buy_text');
+    localStorage.removeItem('mt5_color_sell_word');
+    localStorage.removeItem('mt5_color_sell_line');
+    localStorage.removeItem('mt5_color_sell_text');
+    
     State.drawings = [];
     State.rawCSVCandles = [];
+    
+    // Reset advanced customizations State variables to defaults
+    State.labelHeight = 12;
+    State.buyWidth = 23;
+    State.sellWidth = 27;
+    State.buyLotWidth = 21;
+    State.sellLotWidth = 23;
+    State.labelSpacing = 2.0;
+    State.labelGap = 6;
+    State.fontLabels = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+    State.fontPrices = '"SF Pro Display", -apple-system, sans-serif';
+    State.fontTime = '"SF Pro Display", -apple-system, sans-serif';
+    State.colorBuyLabel = '#3c99ff';
+    State.colorBuyText = '#ffffff';
+    State.colorSellWord = '#dd5e56';
+    State.colorSellLine = '#e73d2b';
+    State.colorSellText = '#ffffff';
+    
+    // Re-initialize input fields on screen
+    initAdvancedSettings();
     
     // Restore default colors
     State.colors = {
@@ -2738,6 +2824,120 @@ Object.keys(colorInputs).forEach(key => {
             drawChart();
         });
     }
+});
+
+// --- ADVANCED CUSTOMIZATION SETTINGS BINDINGS ---
+const advancedSettings = {
+    // Sizing (Float values allowed to support decimals like 3.3px)
+    'setting-label-height': { key: 'labelHeight', type: 'float', storage: 'mt5_label_height' },
+    'setting-buy-width': { key: 'buyWidth', type: 'float', storage: 'mt5_buy_width' },
+    'setting-sell-width': { key: 'sellWidth', type: 'float', storage: 'mt5_sell_width' },
+    'setting-buy-lot-width': { key: 'buyLotWidth', type: 'float', storage: 'mt5_buy_lot_width' },
+    'setting-sell-lot-width': { key: 'sellLotWidth', type: 'float', storage: 'mt5_sell_lot_width' },
+    'setting-label-spacing': { key: 'labelSpacing', type: 'float', storage: 'mt5_label_spacing' },
+    'setting-label-gap': { key: 'labelGap', type: 'float', storage: 'mt5_label_gap' },
+    // Fonts & Weights
+    'setting-font-labels': { key: 'fontLabels', type: 'string', storage: 'mt5_font_labels' },
+    'setting-font-prices': { key: 'fontPrices', type: 'string', storage: 'mt5_font_prices' },
+    'setting-font-time': { key: 'fontTime', type: 'string', storage: 'mt5_font_time' },
+    'setting-weight-labels': { key: 'weightLabels', type: 'string', storage: 'mt5_weight_labels' },
+    'setting-weight-prices': { key: 'weightPrices', type: 'string', storage: 'mt5_weight_prices' },
+    'setting-weight-time': { key: 'weightTime', type: 'string', storage: 'mt5_weight_time' },
+    // Colors
+    'setting-color-buy-label': { key: 'colorBuyLabel', type: 'string', storage: 'mt5_color_buy_label' },
+    'setting-color-buy-text': { key: 'colorBuyText', type: 'string', storage: 'mt5_color_buy_text' },
+    'setting-color-sell-word': { key: 'colorSellWord', type: 'string', storage: 'mt5_color_sell_word' },
+    'setting-color-sell-line': { key: 'colorSellLine', type: 'string', storage: 'mt5_color_sell_line' },
+    'setting-color-sell-text': { key: 'colorSellText', type: 'string', storage: 'mt5_color_sell_text' }
+};
+
+function initAdvancedSettings() {
+    Object.keys(advancedSettings).forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        
+        const config = advancedSettings[id];
+        // Set initial value
+        el.value = State[config.key];
+        
+        // Listen to change/input
+        const eventType = el.tagName === 'SELECT' ? 'change' : 'input';
+        el.addEventListener(eventType, (e) => {
+            let val = e.target.value;
+            if (config.type === 'int') {
+                val = parseInt(val) || 0;
+            } else if (config.type === 'float') {
+                val = parseFloat(val) || 0.0;
+            }
+            State[config.key] = val;
+            localStorage.setItem(config.storage, val);
+            drawChart();
+        });
+    });
+}
+
+// Bind Save and Reset Customizations button actions
+document.getElementById('save-settings-btn').addEventListener('click', () => {
+    // Force save all configurations (normally auto-saved, but reassuring to click)
+    Object.keys(advancedSettings).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            const config = advancedSettings[id];
+            let val = el.value;
+            if (config.type === 'float') val = parseFloat(val) || 0.0;
+            State[config.key] = val;
+            localStorage.setItem(config.storage, val);
+        }
+    });
+    drawChart();
+    alert('تم حفظ جميع إعدادات المظهر والأبعاد والخطوط بنجاح!');
+});
+
+document.getElementById('reset-customizations-btn').addEventListener('click', () => {
+    // Clear only customizable parameters from localStorage
+    localStorage.removeItem('mt5_label_height');
+    localStorage.removeItem('mt5_buy_width');
+    localStorage.removeItem('mt5_sell_width');
+    localStorage.removeItem('mt5_buy_lot_width');
+    localStorage.removeItem('mt5_sell_lot_width');
+    localStorage.removeItem('mt5_label_spacing');
+    localStorage.removeItem('mt5_label_gap');
+    localStorage.removeItem('mt5_font_labels');
+    localStorage.removeItem('mt5_font_prices');
+    localStorage.removeItem('mt5_font_time');
+    localStorage.removeItem('mt5_weight_labels');
+    localStorage.removeItem('mt5_weight_prices');
+    localStorage.removeItem('mt5_weight_time');
+    localStorage.removeItem('mt5_color_buy_label');
+    localStorage.removeItem('mt5_color_buy_text');
+    localStorage.removeItem('mt5_color_sell_word');
+    localStorage.removeItem('mt5_color_sell_line');
+    localStorage.removeItem('mt5_color_sell_text');
+    
+    // Restore default values
+    State.labelHeight = 12;
+    State.buyWidth = 23;
+    State.sellWidth = 27;
+    State.buyLotWidth = 21;
+    State.sellLotWidth = 23;
+    State.labelSpacing = 2.0;
+    State.labelGap = 6;
+    State.fontLabels = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+    State.fontPrices = '"SF Pro Display", -apple-system, sans-serif';
+    State.fontTime = '"SF Pro Display", -apple-system, sans-serif';
+    State.weightLabels = '400';
+    State.weightPrices = '400';
+    State.weightTime = '400';
+    State.colorBuyLabel = '#3c99ff';
+    State.colorBuyText = '#ffffff';
+    State.colorSellWord = '#dd5e56';
+    State.colorSellLine = '#e73d2b';
+    State.colorSellText = '#ffffff';
+    
+    // Refresh inputs on screen
+    initAdvancedSettings();
+    drawChart();
+    alert('تم إعادة تعيين أبعاد وخطوط وألوان صفقات BUY/SELL والأسعار الافتراضية.');
 });
 
 // Dynamically aggregate base candles into target timeframe intervals
@@ -3146,12 +3346,13 @@ function finalizeInit() {
         }
     }
 
+    initAdvancedSettings();
     resizeCanvas();
     updateTradingPanelUI();
     updatePositionsProfit();
     
-    // Force clean old service worker cache on first load of version 7
-    if (!localStorage.getItem('sw_migrated_v7')) {
+    // Force clean old service worker cache on first load of version 11
+    if (!localStorage.getItem('sw_migrated_v11')) {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(registrations => {
                 for (let registration of registrations) {
@@ -3164,7 +3365,7 @@ function finalizeInit() {
                 for (let name of names) caches.delete(name);
             });
         }
-        localStorage.setItem('sw_migrated_v7', 'true');
+        localStorage.setItem('sw_migrated_v11', 'true');
         setTimeout(() => {
             window.location.reload(true); // Force reload to fetch everything fresh
         }, 200);
@@ -3173,7 +3374,7 @@ function finalizeInit() {
 
     // Register PWA Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=7')
+        navigator.serviceWorker.register('./sw.js?v=11')
             .then(() => console.log('PWA Service Worker Registered'))
             .catch(err => console.log('Service Worker Registration Failed:', err));
     }

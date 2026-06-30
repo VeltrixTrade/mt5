@@ -895,6 +895,19 @@ button, input, select, textarea {
     padding: 4px;
 }
 
+.settings-select {
+    width: 100%;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    margin-top: 5px;
+    outline: none;
+    transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
 .csv-upload-label {
     background: var(--mt5-blue);
     color: #fff;
