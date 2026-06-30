@@ -102,6 +102,11 @@ const State = {
     fontSizePrices: parseFloat(localStorage.getItem('mt5_font_size_prices')) || 11,
     pricesScaleX: parseFloat(localStorage.getItem('mt5_prices_scale_x')) || 1.0,
     
+    // Position label price box customizations (defaults match regular prices)
+    fontSizeLabelPrices: parseFloat(localStorage.getItem('mt5_font_size_label_prices')) || 12,
+    labelPricesScaleX: parseFloat(localStorage.getItem('mt5_label_prices_scale_x')) || 1.0,
+    labelPricesSpacing: parseFloat(localStorage.getItem('mt5_label_prices_spacing')) || 2.0,
+    
     fontLabels: localStorage.getItem('mt5_font_labels') || '"Helvetica Neue", Helvetica, Arial, sans-serif',
     fontPrices: localStorage.getItem('mt5_font_prices') || '"SF Pro Display", -apple-system, sans-serif',
     fontTime: localStorage.getItem('mt5_font_time') || '"SF Pro Display", -apple-system, sans-serif',
@@ -873,7 +878,7 @@ function drawChartFrame() {
         ctx.save();
         ctx.globalAlpha = pos.opacity;
         
-        ctx.font = State.weightPrices + ' 12px ' + State.fontPrices;
+        ctx.font = State.weightPrices + ' ' + State.fontSizeLabelPrices + 'px ' + State.fontPrices;
         const priceText = pos.openPrice.toFixed(3);
         
         const boxWidth = State.priceBoxWidth;
@@ -888,10 +893,10 @@ function drawChartFrame() {
         ctx.lineWidth = 0.5;
         ctx.strokeRect(boxX + 0.5, boxY + 0.5, boxWidth - 1, boxHeight - 1);
         
-        // Draw price text (limited to box width minus 8px padding)
+        // Draw price text (using position-label-specific price settings)
         ctx.fillStyle = lineColor;
         ctx.textBaseline = 'middle';
-        fillTextWithSpacing(ctx, priceText, boxX + boxWidth / 2, y + 0.5, State.pricesSpacing, 'center', boxWidth - 8);
+        fillTextWithSpacing(ctx, priceText, boxX + boxWidth / 2, y + 0.5, State.labelPricesSpacing, 'center', null, State.labelPricesScaleX);
         ctx.restore();
     });
     
@@ -920,9 +925,9 @@ function drawChartFrame() {
         ctx.fillStyle = State.colors.askLine;
         ctx.fillRect(boxX, boxY, boxWidth, boxHeight);        // Price text
         ctx.fillStyle = '#ffffff';
-        ctx.font = State.weightPrices + ' 12px ' + State.fontPrices;
+        ctx.font = State.weightPrices + ' ' + State.fontSizePrices + 'px ' + State.fontPrices;
         ctx.textBaseline = 'middle';
-        fillTextWithSpacing(ctx, State.currentAsk.toFixed(3), boxX + boxWidth / 2, askY, State.pricesSpacing, 'center', boxWidth - 8);
+        fillTextWithSpacing(ctx, State.currentAsk.toFixed(3), boxX + boxWidth / 2, askY, State.pricesSpacing, 'center', null, State.pricesScaleX);
         ctx.restore();
     }
 
@@ -951,9 +956,9 @@ function drawChartFrame() {
         
         // Price text
         ctx.fillStyle = '#ffffff';
-        ctx.font = State.weightPrices + ' 12px ' + State.fontPrices;
+        ctx.font = State.weightPrices + ' ' + State.fontSizePrices + 'px ' + State.fontPrices;
         ctx.textBaseline = 'middle';
-        fillTextWithSpacing(ctx, State.currentBid.toFixed(3), boxX + boxWidth / 2, bidY, State.pricesSpacing, 'center', boxWidth - 8);
+        fillTextWithSpacing(ctx, State.currentBid.toFixed(3), boxX + boxWidth / 2, bidY, State.pricesSpacing, 'center', null, State.pricesScaleX);
         ctx.restore();
     }
     
@@ -2874,6 +2879,9 @@ const advancedSettings = {
     'setting-price-axis-max-width': { key: 'priceAxisMaxWidth', type: 'float', storage: 'mt5_price_axis_max_width' },
     'setting-font-size-prices': { key: 'fontSizePrices', type: 'float', storage: 'mt5_font_size_prices' },
     'setting-prices-scale-x': { key: 'pricesScaleX', type: 'float', storage: 'mt5_prices_scale_x' },
+    'setting-font-size-label-prices': { key: 'fontSizeLabelPrices', type: 'float', storage: 'mt5_font_size_label_prices' },
+    'setting-label-prices-scale-x': { key: 'labelPricesScaleX', type: 'float', storage: 'mt5_label_prices_scale_x' },
+    'setting-label-prices-spacing': { key: 'labelPricesSpacing', type: 'float', storage: 'mt5_label_prices_spacing' },
     // Fonts & Weights
     'setting-font-labels': { key: 'fontLabels', type: 'string', storage: 'mt5_font_labels' },
     'setting-font-prices': { key: 'fontPrices', type: 'string', storage: 'mt5_font_prices' },
@@ -2985,6 +2993,9 @@ if (resetCustomizationsBtn) {
     localStorage.removeItem('mt5_price_axis_max_width');
     localStorage.removeItem('mt5_font_size_prices');
     localStorage.removeItem('mt5_prices_scale_x');
+    localStorage.removeItem('mt5_font_size_label_prices');
+    localStorage.removeItem('mt5_label_prices_scale_x');
+    localStorage.removeItem('mt5_label_prices_spacing');
     localStorage.removeItem('mt5_font_labels');
     localStorage.removeItem('mt5_font_prices');
     localStorage.removeItem('mt5_font_time');
@@ -3017,6 +3028,9 @@ if (resetCustomizationsBtn) {
     State.priceAxisMaxWidth = 56;
     State.fontSizePrices = 11;
     State.pricesScaleX = 1.0;
+    State.fontSizeLabelPrices = 12;
+    State.labelPricesScaleX = 1.0;
+    State.labelPricesSpacing = 2.0;
     State.fontLabels = '"Helvetica Neue", Helvetica, Arial, sans-serif';
     State.fontPrices = '"SF Pro Display", -apple-system, sans-serif';
     State.fontTime = '"SF Pro Display", -apple-system, sans-serif';
@@ -3447,8 +3461,8 @@ function finalizeInit() {
     updateTradingPanelUI();
     updatePositionsProfit();
     
-    // Force clean old service worker cache on first load of version 16
-    if (!localStorage.getItem('sw_migrated_v16')) {
+    // Force clean old service worker cache on first load of version 17
+    if (!localStorage.getItem('sw_migrated_v17')) {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(registrations => {
                 for (let registration of registrations) {
@@ -3461,7 +3475,7 @@ function finalizeInit() {
                 for (let name of names) caches.delete(name);
             });
         }
-        localStorage.setItem('sw_migrated_v16', 'true');
+        localStorage.setItem('sw_migrated_v17', 'true');
         setTimeout(() => {
             window.location.reload(true); // Force reload to fetch everything fresh
         }, 200);
@@ -3470,7 +3484,7 @@ function finalizeInit() {
 
     // Register PWA Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=16')
+        navigator.serviceWorker.register('./sw.js?v=17')
             .then(() => console.log('PWA Service Worker Registered'))
             .catch(err => console.log('Service Worker Registration Failed:', err));
     }

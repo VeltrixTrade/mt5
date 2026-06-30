@@ -46,6 +46,11 @@ html, body {
     height: 100%;
     margin: 0;
     padding: 0;
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    left: 0;
+    top: 0;
 }
 
 body {
@@ -55,6 +60,10 @@ body {
     justify-content: center;
     align-items: center;
     overflow: hidden;
+}
+
+button, .replay-btn, .speed-btn, .nav-overlay-btn {
+    touch-action: manipulation;
 }
 
 button, input, select, textarea {
