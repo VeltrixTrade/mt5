@@ -536,18 +536,8 @@ function drawChartFrame() {
         const candleIndex = Math.round(endIndex - (MARGIN_LEFT + chartWidth - x) / candleSpacing + 0.5);
         const timeInfo = getCandleTimeAndDate(candleIndex);
         
-        // A. Draw vertical dotted grid line & axis tick (only if tick x is on screen)
+        // A. Draw axis tick on the bottom horizontal line (only if tick x is on screen)
         if (x >= MARGIN_LEFT && x <= MARGIN_LEFT + chartWidth) {
-            ctx.save();
-            ctx.strokeStyle = State.colors.grid;
-            ctx.lineWidth = 0.5;
-            ctx.setLineDash([1, 2]); // dotted lines
-            ctx.beginPath();
-            ctx.moveTo(x, MARGIN_TOP);
-            ctx.lineTo(x, MARGIN_TOP + chartHeight);
-            ctx.stroke();
-            ctx.restore();
-            
             ctx.save();
             ctx.strokeStyle = State.colors.grid;
             ctx.lineWidth = 1;
@@ -3664,8 +3654,8 @@ function finalizeInit() {
     updateTradingPanelUI();
     updatePositionsProfit();
     
-    // Force clean old service worker cache on first load of version 50
-    if (!localStorage.getItem('sw_migrated_v50')) {
+    // Force clean old service worker cache on first load of version 51
+    if (!localStorage.getItem('sw_migrated_v51')) {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(registrations => {
                 for (let registration of registrations) {
@@ -3678,7 +3668,7 @@ function finalizeInit() {
                 for (let name of names) caches.delete(name);
             });
         }
-        localStorage.setItem('sw_migrated_v50', 'true');
+        localStorage.setItem('sw_migrated_v51', 'true');
         setTimeout(() => {
             window.location.reload(true); // Force reload to fetch everything fresh
         }, 200);
@@ -3687,7 +3677,7 @@ function finalizeInit() {
 
     // Register PWA Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=50')
+        navigator.serviceWorker.register('./sw.js?v=51')
             .then(() => console.log('PWA Service Worker Registered'))
             .catch(err => console.log('Service Worker Registration Failed:', err));
     }
