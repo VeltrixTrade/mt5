@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Lato:wght@400;700&family=Montserrat:wght@400;500;700&family=Open+Sans:wght@400;600&family=Outfit:wght@400;500;700&family=Poppins:wght@400;500;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="styles.css?v=18">
+    <link rel="stylesheet" href="styles.css?v=50">
 </head>
 <body>
     <div class="iphone-frame">
@@ -299,6 +299,13 @@
                                     <span class="ios-slider"></span>
                                 </label>
                             </div>
+                            <div class="settings-item">
+                                <span>حركة الشموع السلسة (Realistic Replay)</span>
+                                <label class="ios-switch">
+                                    <input type="checkbox" id="setting-smooth-replay" checked>
+                                    <span class="ios-slider"></span>
+                                </label>
+                            </div>
                         </div>
 
                         <div class="settings-group">
@@ -543,6 +550,30 @@
                         </div>
 
                         <div class="settings-group">
+                            <div class="settings-title">إعدادات محور الوقت والنقاط الثلاث (Time Axis & Three Dots)</div>
+                            <div class="settings-item">
+                                <span>التباعد بين الفواصل (بكسل)</span>
+                                <input type="number" id="setting-time-spacing-px" value="92" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>دورة السحب للتصفير (بكسل)</span>
+                                <input type="number" id="setting-time-max-offset" value="44" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>هامش إخفاء التاريخ الأيمن (بكسل)</span>
+                                <input type="number" id="setting-time-right-margin" value="11" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>موقع النقاط الثلاث أفقياً (بكسل)</span>
+                                <input type="number" id="setting-three-dots-x" value="34" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                            <div class="settings-item">
+                                <span>موقع النقاط الثلاث عمودياً (بكسل)</span>
+                                <input type="number" id="setting-three-dots-y" value="630" step="any" style="width: 60px; text-align: center;">
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
                             <div class="settings-title">ألوان صفقات BUY / SELL والملصقات</div>
                             <div class="settings-color-container">
                                 <div class="settings-color-item">
@@ -693,6 +724,7 @@
                 </div>
                 <div class="replay-speed-row">
                     <span style="font-size: 11px; margin-right: 5px; margin-left: 5px;">السرعة:</span>
+                    <button class="speed-btn" data-speed="0.5">0.5x</button>
                     <button class="speed-btn active" data-speed="1">1x</button>
                     <button class="speed-btn" data-speed="2">2x</button>
                     <button class="speed-btn" data-speed="5">5x</button>
@@ -728,6 +760,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=18"></script>
+    <script src="app.js?v=50"></script>
 </body>
 </html>

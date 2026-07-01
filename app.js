@@ -45,8 +45,11 @@ const State = {
     replaySelectIndex: -1,
     replayIndex: 50,    // Number of candles revealed so far in replay mode
     replayIntervalId: null,
-    replaySpeed: 1,     // Speed multiplier (1x, 2x, 5x, 10x)
+    replaySpeed: 1,     // Speed multiplier (0.5x, 1x, 2x, 5x, 10x)
     replayPlaying: false,
+    smoothReplay: localStorage.getItem('mt5_smooth_replay') !== null ? JSON.parse(localStorage.getItem('mt5_smooth_replay')) : true,
+    smoothReplayProgress: 0.0,
+    smoothReplayLastTime: 0,
     
     // Timeframe Configuration
     timeframeMinutes: 5,
@@ -106,6 +109,13 @@ const State = {
     fontSizeLabelPrices: parseFloat(localStorage.getItem('mt5_font_size_label_prices')) || 10.5,
     labelPricesScaleX: parseFloat(localStorage.getItem('mt5_label_prices_scale_x')) || 1.0,
     labelPricesSpacing: parseFloat(localStorage.getItem('mt5_label_prices_spacing')) || 1.0,
+    
+    // Timeline & Three Dots Custom Settings
+    timeSpacingPx: parseFloat(localStorage.getItem('mt5_time_spacing_px')) || 92,
+    timeMaxOffset: parseFloat(localStorage.getItem('mt5_time_max_offset')) || 44,
+    timeRightMargin: parseFloat(localStorage.getItem('mt5_time_right_margin')) || 11,
+    threeDotsX: parseFloat(localStorage.getItem('mt5_three_dots_x')) || 34,
+    threeDotsY: parseFloat(localStorage.getItem('mt5_three_dots_y')) || 630,
     
     fontLabels: localStorage.getItem('mt5_font_labels') || '"SF Pro Display", -apple-system, sans-serif',
     fontPrices: localStorage.getItem('mt5_font_prices') || '"SF Pro Text", -apple-system, sans-serif',
@@ -290,7 +300,20 @@ function formatTimeLabel(date) {
 // Returns the active candles array based on replay mode
 function getActiveCandles() {
     if (State.replayMode) {
-        return State.candles.slice(0, State.replayIndex + 1);
+        const sliced = State.candles.slice(0, State.replayIndex + 1);
+        if (sliced.length > 0 && State.smoothReplay) {
+            const originalLast = sliced[sliced.length - 1];
+            const animated = getIntraCandlePrice(originalLast, State.smoothReplayProgress);
+            const copy = [...sliced];
+            copy[copy.length - 1] = {
+                ...originalLast,
+                high: animated.maxPrice,
+                low: animated.minPrice,
+                close: animated.price
+            };
+            return copy;
+        }
+        return sliced;
     }
     return State.candles;
 }
@@ -381,10 +404,22 @@ function drawChart() {
     });
 }
 
+function updateReplayToggleButtonPosition() {
+    if (!replayPanelToggle) return;
+    const chartWidth = State.width - State.marginRight - MARGIN_LEFT;
+    const dotX = MARGIN_LEFT + chartWidth + State.threeDotsX;
+    const dotY = State.threeDotsY;
+    replayPanelToggle.style.left = (dotX - 34) + 'px';
+    replayPanelToggle.style.top = (dotY - 15) + 'px';
+    replayPanelToggle.style.bottom = 'auto';
+    replayPanelToggle.style.right = 'auto';
+}
+
 function drawChartFrame() {
     if (State.width === 0 || State.height === 0 || State.candles.length === 0) return;
     
     MARGIN_RIGHT = State.marginRight;
+    updateReplayToggleButtonPosition();
     
     // Force LTR direction on canvas to prevent system-level RTL shuffling of numbers and timestamps
     ctx.direction = 'ltr';
@@ -484,44 +519,64 @@ function drawChartFrame() {
         ctx.restore();
     }
     
-    // 2. Vertical time grid lines (exactly 4 labels spaced at specific pixel offsets: 33px from left, 96px between each)
-    const targetXPositions = [
-        MARGIN_LEFT + 33,
-        MARGIN_LEFT + 33 + 96,
-        MARGIN_LEFT + 33 + 96 * 2,
-        MARGIN_LEFT + 33 + 96 * 3
-    ];
+    // 2. Vertical time grid lines & dynamic labels (metaTrader 5 style, bound to candles and panning smoothly)
+    // Spacing, maxOffset, and rightMargin are customizable via Advanced Settings:
+    const spacing = State.timeSpacingPx;
+    const maxOffset = State.timeMaxOffset;
+    const scrollOffsetPixels = State.panOffset * candleSpacing;
+    const offset = Math.round(((scrollOffsetPixels % maxOffset) + maxOffset) % maxOffset);
     
-    targetXPositions.forEach((targetX, index) => {
-        // Find nearest candle index corresponding to targetX without clamping, so we can extrapolate past/future dates smoothly
-        let idx = endIndex - Math.round((MARGIN_LEFT + chartWidth - targetX - candleSpacing / 2) / candleSpacing);
-        const timeInfo = getCandleTimeAndDate(idx);
+    // Dynamically calculate how many vertical grid lines are needed to cover the chart width
+    const maxLines = Math.ceil((chartWidth + maxOffset) / spacing) + 1;
+    
+    for (let n = 0; n < maxLines; n++) {
+        const x = Math.round(MARGIN_LEFT + offset + n * spacing);
         
-        // Cap drawX to be inside the horizontal line (leaving 1px safety padding from the vertical boundary)
-        const drawX = Math.min(targetX, MARGIN_LEFT + chartWidth - 1);
+        // Calculate corresponding candle index for this x position
+        const candleIndex = Math.round(endIndex - (MARGIN_LEFT + chartWidth - x) / candleSpacing + 0.5);
+        const timeInfo = getCandleTimeAndDate(candleIndex);
         
-        // Draw tick mark and time label directly at drawX (fixed screen positions matching MT5 layout)
+        // A. Draw vertical dotted grid line & axis tick (only if tick x is on screen)
+        if (x >= MARGIN_LEFT && x <= MARGIN_LEFT + chartWidth) {
+            ctx.save();
+            ctx.strokeStyle = State.colors.grid;
+            ctx.lineWidth = 0.5;
+            ctx.setLineDash([1, 2]); // dotted lines
+            ctx.beginPath();
+            ctx.moveTo(x, MARGIN_TOP);
+            ctx.lineTo(x, MARGIN_TOP + chartHeight);
+            ctx.stroke();
+            ctx.restore();
+            
+            ctx.save();
+            ctx.strokeStyle = State.colors.grid;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([]); // solid tick
+            ctx.beginPath();
+            ctx.moveTo(x, MARGIN_TOP + chartHeight);
+            ctx.lineTo(x, MARGIN_TOP + chartHeight + 4);
+            ctx.stroke();
+            ctx.restore();
+        }
+        
+        // B. Draw time label aligned to left (separator is always to the left of the word)
         ctx.save();
-        ctx.setLineDash([]); // solid text and ticks
-        ctx.strokeStyle = State.colors.grid;
-        ctx.lineWidth = 1;
+        ctx.font = State.weightTime + ' 11px ' + State.fontTime;
         
-        // Draw axis tick pointing downwards directly at drawX
-        ctx.beginPath();
-        ctx.moveTo(drawX, MARGIN_TOP + chartHeight);
-        ctx.lineTo(drawX, MARGIN_TOP + chartHeight + 4);
-        ctx.stroke();
+        let labelText = timeInfo.timeLabel;
         
-        if (index < targetXPositions.length - 1) {
+        // Draw ONLY if the separator tick is on screen (x >= MARGIN_LEFT) and has not hit the right boundary minus custom safety margin
+        if (x >= MARGIN_LEFT && x < MARGIN_LEFT + chartWidth - State.timeRightMargin) {
             ctx.textAlign = 'left';
-            ctx.font = State.weightTime + ' 11px ' + State.fontTime;
             ctx.fillStyle = State.colors.foreground;
-            // Draw time label aligned to drawX with customizable spacing
-            fillTextWithSpacing(ctx, timeInfo.timeLabel, drawX + 3, MARGIN_TOP + chartHeight + 14, State.timeSpacing, 'left', 73);
+            // Draw time label aligned to x + 3 with customizable spacing (max width of 80px to clamp if too long)
+            fillTextWithSpacing(ctx, labelText, x + 3, MARGIN_TOP + chartHeight + 14, State.timeSpacing, 'left', 80);
         }
         ctx.restore();
-    });
+    }
     ctx.restore();
+    
+
     
     // 2. Draw Technical Drawings (Rectangles & Arrows)
     ctx.save();
@@ -987,8 +1042,8 @@ function drawChartFrame() {
     ctx.stroke();
     
     // Draw three circles grouping together to form '...'
-    const dotY = 640;
-    const dotX = MARGIN_LEFT + chartWidth + 34;
+    const dotY = State.threeDotsY;
+    const dotX = MARGIN_LEFT + chartWidth + State.threeDotsX;
     ctx.fillStyle = State.colors.foreground;
     
     // Draw Dot 1
@@ -1860,6 +1915,69 @@ function updateTradingPanelUI() {
 setInterval(triggerPriceTick, 1500);
 
 // --- REPLAY ENGINE ---
+function getIntraCandlePrice(candle, progress) {
+    if (!candle) return { price: 0, maxPrice: 0, minPrice: 0 };
+    const isBull = candle.close >= candle.open;
+    const p1 = 0.33;
+    const p2 = 0.66;
+    
+    if (isBull) {
+        // Path: Open -> Low -> High -> Close
+        if (progress <= p1) {
+            const t = progress / p1; // 0 to 1
+            const price = candle.open + (candle.low - candle.open) * t;
+            return { 
+                price, 
+                maxPrice: candle.open, 
+                minPrice: Math.min(candle.open, price) 
+            };
+        } else if (progress <= p2) {
+            const t = (progress - p1) / (p2 - p1); // 0 to 1
+            const price = candle.low + (candle.high - candle.low) * t;
+            return { 
+                price, 
+                maxPrice: Math.max(candle.open, price), 
+                minPrice: candle.low 
+            };
+        } else {
+            const t = (progress - p2) / (1.0 - p2); // 0 to 1
+            const price = candle.high + (candle.close - candle.high) * t;
+            return { 
+                price, 
+                maxPrice: candle.high, 
+                minPrice: candle.low 
+            };
+        }
+    } else {
+        // Path: Open -> High -> Low -> Close
+        if (progress <= p1) {
+            const t = progress / p1;
+            const price = candle.open + (candle.high - candle.open) * t;
+            return { 
+                price, 
+                maxPrice: Math.max(candle.open, price), 
+                minPrice: candle.open 
+            };
+        } else if (progress <= p2) {
+            const t = (progress - p1) / (p2 - p1);
+            const price = candle.high + (candle.low - candle.high) * t;
+            return { 
+                price, 
+                maxPrice: candle.high, 
+                minPrice: Math.min(candle.open, price) 
+            };
+        } else {
+            const t = (progress - p2) / (1.0 - p2);
+            const price = candle.low + (candle.close - candle.low) * t;
+            return { 
+                price, 
+                maxPrice: candle.high, 
+                minPrice: candle.low 
+            };
+        }
+    }
+}
+
 function toggleReplayMode() {
     if (State.replayMode || State.isReplaySelectMode) {
         // Exit replay mode & select mode
@@ -1905,6 +2023,7 @@ function startReplayAt(clickedIdx) {
     const diff = prevTotal - newTotal;
     
     State.replayIndex = clickedIdx;
+    State.smoothReplayProgress = 0.0;
     State.isReplaySelectMode = false;
     State.replayMode = true;
     
@@ -1923,39 +2042,87 @@ function keepReplayIndexVisible() {
     // Keep it free: do not automatically scroll the screen during replay.
 }
 
+let smoothReplayAnimationId = null;
+
+function animateSmoothReplay(timestamp) {
+    if (!State.replayPlaying || !State.smoothReplay) {
+        smoothReplayAnimationId = null;
+        return;
+    }
+    
+    if (!State.smoothReplayLastTime) {
+        State.smoothReplayLastTime = timestamp;
+    }
+    
+    const dt = (timestamp - State.smoothReplayLastTime) / 1000;
+    State.smoothReplayLastTime = timestamp;
+    
+    // 2.0 seconds duration per candle at 1x speed
+    const duration = 2.0 / State.replaySpeed;
+    State.smoothReplayProgress += dt / duration;
+    
+    if (State.smoothReplayProgress >= 1.0) {
+        State.smoothReplayProgress = 0.0;
+        if (State.replayIndex < State.candles.length - 1) {
+            State.replayIndex++;
+        } else {
+            pauseReplay();
+            drawChart();
+            return;
+        }
+    }
+    
+    syncReplayCandleData();
+    drawChart();
+    
+    if (State.replayPlaying && State.smoothReplay) {
+        smoothReplayAnimationId = requestAnimationFrame(animateSmoothReplay);
+    }
+}
+
 function playReplay() {
     if (State.replayPlaying) return;
     State.replayPlaying = true;
     replayPlayBtn.style.opacity = 0.5;
     replayPauseBtn.style.opacity = 1;
     
-    const intervalDuration = 2000 / State.replaySpeed;
-    State.replayIntervalId = setInterval(() => {
-        if (State.replayIndex < State.candles.length - 1) {
-            State.replayIndex++;
-            syncReplayCandleData();
-            keepReplayIndexVisible();
-            drawChart();
-        } else {
-            pauseReplay();
-        }
-    }, intervalDuration);
+    if (State.smoothReplay) {
+        State.smoothReplayLastTime = 0;
+        smoothReplayAnimationId = requestAnimationFrame(animateSmoothReplay);
+    } else {
+        const intervalDuration = 2000 / State.replaySpeed;
+        State.replayIntervalId = setInterval(() => {
+            if (State.replayIndex < State.candles.length - 1) {
+                State.replayIndex++;
+                syncReplayCandleData();
+                keepReplayIndexVisible();
+                drawChart();
+            } else {
+                pauseReplay();
+            }
+        }, intervalDuration);
+    }
 }
 
 function pauseReplay() {
     State.replayPlaying = false;
     replayPlayBtn.style.opacity = 1;
     replayPauseBtn.style.opacity = 0.5;
+    
     if (State.replayIntervalId) {
         clearInterval(State.replayIntervalId);
         State.replayIntervalId = null;
+    }
+    if (smoothReplayAnimationId) {
+        cancelAnimationFrame(smoothReplayAnimationId);
+        smoothReplayAnimationId = null;
     }
 }
 
 function adjustReplaySpeed(speed) {
     State.replaySpeed = speed;
     speedButtons.forEach(btn => {
-        if (parseInt(btn.dataset.speed) === speed) {
+        if (parseFloat(btn.dataset.speed) === speed) {
             btn.classList.add('active');
         } else {
             btn.classList.remove('active');
@@ -1972,6 +2139,7 @@ function stepReplayForward() {
     pauseReplay();
     if (State.replayIndex < State.candles.length - 1) {
         State.replayIndex++;
+        State.smoothReplayProgress = 0.0;
         syncReplayCandleData();
         keepReplayIndexVisible();
         drawChart();
@@ -1982,6 +2150,7 @@ function stepReplayBackward() {
     pauseReplay();
     if (State.replayIndex > 0) {
         State.replayIndex--;
+        State.smoothReplayProgress = 0.0;
         syncReplayCandleData();
         drawChart();
     }
@@ -2016,6 +2185,7 @@ if (replayCloseBtn) {
         State.replayMode = false;
         State.isReplaySelectMode = false;
         State.replaySelectIndex = -1;
+        State.smoothReplayProgress = 0.0;
         
         // Adjust panOffset to keep candles in the same position on screen
         State.panOffset = State.panOffset - diff;
@@ -2042,7 +2212,7 @@ replayPrevBtn.addEventListener('click', stepReplayBackward);
 
 speedButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-        adjustReplaySpeed(parseInt(btn.dataset.speed));
+        adjustReplaySpeed(parseFloat(btn.dataset.speed));
     });
 });
 
@@ -2729,6 +2899,19 @@ setTimeout(() => {
     setDarkMode(State.isDarkMode);
 }, 50);
 
+// Smooth Replay Toggle Logic
+const smoothReplayToggle = document.getElementById('setting-smooth-replay');
+if (smoothReplayToggle) {
+    smoothReplayToggle.checked = State.smoothReplay;
+    smoothReplayToggle.addEventListener('change', (e) => {
+        State.smoothReplay = e.target.checked;
+        localStorage.setItem('mt5_smooth_replay', JSON.stringify(State.smoothReplay));
+        State.smoothReplayProgress = 0.0;
+        syncReplayCandleData();
+        drawChart();
+    });
+}
+
 document.getElementById('indicators-overlay-btn').addEventListener('click', () => {
     alert('قائمة المؤشرات الفنية (المتوسطات المتحركة، مؤشر القوة RSI)');
 });
@@ -2888,7 +3071,12 @@ const advancedSettings = {
     'setting-font-time': { key: 'fontTime', type: 'string', storage: 'mt5_font_time' },
     'setting-weight-labels': { key: 'weightLabels', type: 'string', storage: 'mt5_weight_labels' },
     'setting-weight-prices': { key: 'weightPrices', type: 'string', storage: 'mt5_weight_prices' },
-    'setting-weight-time': { key: 'weightTime', type: 'string', storage: 'mt5_weight_time' },
+    // Time Axis & Three Dots Custom Settings
+    'setting-time-spacing-px': { key: 'timeSpacingPx', type: 'float', storage: 'mt5_time_spacing_px' },
+    'setting-time-max-offset': { key: 'timeMaxOffset', type: 'float', storage: 'mt5_time_max_offset' },
+    'setting-time-right-margin': { key: 'timeRightMargin', type: 'float', storage: 'mt5_time_right_margin' },
+    'setting-three-dots-x': { key: 'threeDotsX', type: 'float', storage: 'mt5_three_dots_x' },
+    'setting-three-dots-y': { key: 'threeDotsY', type: 'float', storage: 'mt5_three_dots_y' },
     // Colors
     'setting-color-buy-label': { key: 'colorBuyLabel', type: 'string', storage: 'mt5_color_buy_label' },
     'setting-color-buy-text': { key: 'colorBuyText', type: 'string', storage: 'mt5_color_buy_text' },
@@ -3007,20 +3195,32 @@ if (resetCustomizationsBtn) {
     localStorage.removeItem('mt5_color_sell_word');
     localStorage.removeItem('mt5_color_sell_line');
     localStorage.removeItem('mt5_color_sell_text');
+    localStorage.removeItem('mt5_smooth_replay');
+    localStorage.removeItem('mt5_time_spacing_px');
+    localStorage.removeItem('mt5_time_max_offset');
+    localStorage.removeItem('mt5_time_right_margin');
+    localStorage.removeItem('mt5_three_dots_x');
+    localStorage.removeItem('mt5_three_dots_y');
     
     // Restore default values
-    State.labelHeight = 12;
+    State.timeSpacingPx = 92;
+    State.timeMaxOffset = 44;
+    State.timeRightMargin = 11;
+    State.threeDotsX = 34;
+    State.threeDotsY = 630;
+    
+    State.labelHeight = 11;
     State.buyWidth = 23;
-    State.sellWidth = 27;
-    State.buyLotWidth = 21;
+    State.sellWidth = 28;
+    State.buyLotWidth = 25;
     State.sellLotWidth = 23;
     State.labelSpacing = 2.0;
-    State.lotSpacing = 0;
-    State.pricesSpacing = 2.0;
+    State.lotSpacing = 0.5;
+    State.pricesSpacing = 0.5;
     State.timeSpacing = 0;
     State.labelGap = 6;
     State.priceBoxWidth = 64;
-    State.priceBoxHeight = 14;
+    State.priceBoxHeight = 13;
     State.tradeLineWidth = 0.5;
     State.wickWidth = 0.25;
     State.marginRight = 68;
@@ -3028,22 +3228,25 @@ if (resetCustomizationsBtn) {
     State.priceAxisMaxWidth = 56;
     State.fontSizePrices = 11;
     State.pricesScaleX = 1.0;
-    State.fontSizeLabelPrices = 12;
+    State.fontSizeLabelPrices = 10.5;
     State.labelPricesScaleX = 1.0;
-    State.labelPricesSpacing = 2.0;
-    State.fontLabels = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-    State.fontPrices = '"SF Pro Display", -apple-system, sans-serif';
-    State.fontTime = '"SF Pro Display", -apple-system, sans-serif';
+    State.labelPricesSpacing = 1.0;
+    State.smoothReplay = true;
+    State.smoothReplayProgress = 0.0;
+    State.fontLabels = '"SF Pro Display", -apple-system, sans-serif';
+    State.fontPrices = '"SF Pro Text", -apple-system, sans-serif';
+    State.fontTime = '"SF Pro Text", -apple-system, sans-serif';
     State.weightLabels = '400';
-    State.weightPrices = '400';
+    State.weightPrices = '450';
     State.weightTime = '400';
-    State.colorBuyLabel = '#3c99ff';
-    State.colorBuyText = '#3c99ff';
-    State.colorSellWord = '#dd5e56';
-    State.colorSellLine = '#e73d2b';
-    State.colorSellText = '#dd5e56';
+    State.colorBuyLabel = '#3C81FF';
+    State.colorBuyText = '#3C81FF';
+    State.colorSellWord = '#E94015';
+    State.colorSellLine = '#E94015';
+    State.colorSellText = '#E94015';
     
     // Refresh inputs on screen
+    if (smoothReplayToggle) smoothReplayToggle.checked = true;
     initAdvancedSettings();
     drawChart();
     alert('تم إعادة تعيين أبعاد وخطوط وألوان صفقات BUY/SELL والأسعار الافتراضية.');
@@ -3461,8 +3664,8 @@ function finalizeInit() {
     updateTradingPanelUI();
     updatePositionsProfit();
     
-    // Force clean old service worker cache on first load of version 18
-    if (!localStorage.getItem('sw_migrated_v18')) {
+    // Force clean old service worker cache on first load of version 50
+    if (!localStorage.getItem('sw_migrated_v50')) {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(registrations => {
                 for (let registration of registrations) {
@@ -3475,7 +3678,7 @@ function finalizeInit() {
                 for (let name of names) caches.delete(name);
             });
         }
-        localStorage.setItem('sw_migrated_v18', 'true');
+        localStorage.setItem('sw_migrated_v50', 'true');
         setTimeout(() => {
             window.location.reload(true); // Force reload to fetch everything fresh
         }, 200);
@@ -3484,7 +3687,7 @@ function finalizeInit() {
 
     // Register PWA Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js?v=18')
+        navigator.serviceWorker.register('./sw.js?v=50')
             .then(() => console.log('PWA Service Worker Registered'))
             .catch(err => console.log('Service Worker Registration Failed:', err));
     }
